@@ -1,0 +1,54 @@
+
+Verilog, high level FIRRTL and low level FIRRTL generated from chipyard
+
+chipyard version:
+
+  cca3cd087c1c5a54f98867bc4a89129c1c299b94
+  Wed Dec 2 23:10:31 2020 +0500
+
+Chipyard setup
+```
+git clone https://github.com/ucb-bar/chipyard.git
+cd chipyard
+./scripts/init-submodules-no-riscv-tools.sh
+```
+
+Verilog/high FIRRTL generated
+
+```
+cd sims/verilator
+make CONFIG=MegaBoomConfig
+make CONFIG=SmallBoomConfig
+make CONFIG=DualLargeBoomAndDualRocketConfig
+make CONFIG=OctaMediumBoomConfig  # created as 8-core MediumBoom by editing generators/chipyard/src/main/scala/config/BoomConfigs.scala
+```
+
+
+To generate the verilog, lowlevel FIRRTL, go to chipyard and type make (firrtl must be in the path)
+
+OctaMediumBoomConfig             Verilog:
+DualLargeBoomAndDualRocketConfig Verilog: Compile Time: 630960.1 ms (zen2)
+MegaBoom                         Verilog: Compile Time: 849021.8 ms (zen2)
+SmallBoom                        Verilog: Compile Time: 196933.4 ms (zen2)
+
+```
+firrtl -i chipyard.TestHarness.OctaMediumBoomConfig.fir  -X verilog -o chipyard.TestHarness.OctaMediumBoomConfig.v
+firrtl -i chipyard.TestHarness.DualLargeBoomAndDualRocketConfig.fir  -X verilog -o chipyard.TestHarness.DualLargeBoomAndDualRocketConfig.v
+firrtl -i chipyard.TestHarness.MegaBoomConfig.fir  -X verilog -o chipyard.TestHarness.MegaBoomConfig.v
+firrtl -i chipyard.TestHarness.SmallBoomConfig.fir -X verilog -o chipyard.TestHarness.SmallBoomConfig.v
+```
+
+OctaMediumBoomConfig             Low FIRRTL:
+DualLargeBoomAndDualRocketConfig Low FIRRTL: Compile Time: 560859.9 ms
+MegaBoom                         Low FIRRTL: Compile Time: 1068819.2 ms (zen2)
+SmallBoom                        Low FIRRTL: Compile Time: 166653.8 ms (zen2)
+
+```
+firrtl -i chipyard.TestHarness.OctaMediumBoomConfig.fir  -X low     -o chipyard.TestHarness.OctaMediumBoomConfig.lo.fir
+firrtl -i chipyard.TestHarness.DualLargeBoomAndDualRocketConfig.fir  -X low     -o chipyard.TestHarness.DualLargeBoomAndDualRocketConfig.lo.fir
+firrtl -i chipyard.TestHarness.MegaBoomConfig.fir  -X low     -o chipyard.TestHarness.MegaBoomConfig.lo.fir
+firrtl -i chipyard.TestHarness.SmallBoomConfig.fir -X low     -o chipyard.TestHarness.SmallBoomConfig.lo.fir
+```
+
+To generate protobuf to a specific version (PB is more tool version dependent than FIR text)
+

@@ -1,0 +1,6 @@
+
+Tests created with vloghammer https://github.com/YosysHQ/VlogHammer
+
+The tests are like the original but the x/0 (constants) are removed (not the
+ones like x/y where y can be zero after copy propagation)
+
