@@ -1,7 +1,7 @@
 
 
 
-setup: tools/firrtl/utils/bin/firrtl chipyard/chipyard.TestHarness.MegaBoomConfig.hi.fir
+setup: tools/firrtl/utils/bin/firrtl chipyard/chipyard.TestHarness.MegaBoomConfig.hi.fir circt-fuzzer/firt_t1.orig.fir
 
 tools/firrtl/utils/bin/firrtl:
 	cd tools ; ./setup.sh

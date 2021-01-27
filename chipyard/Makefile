@@ -20,16 +20,16 @@ generate: $(hi_pb) $(lo_pb) $(lo_fir)
 
 # FIXME: Having output as circuit.hi.pb blocks the option of make -j
 %.hi.pb:
-	../tools/firrtl/utils/bin/firrtl -i $(subst hi.pb,hi.fir,$@) -X none --custom-transforms firrtl.transforms.WriteHighPB
+	../tools/firrtl/utils/bin/firrtl -i $(subst hi.pb,hi.fir,$@) --no-check-comb-loops --no-dce -X none --custom-transforms firrtl.transforms.WriteHighPB
 	mv circuit.hi.pb $@
 
 # FIXME: Having output as circuit.hi.pb blocks the option of make -j
 %.lo.pb:
-	../tools/firrtl/utils/bin/firrtl -i $(subst lo.pb,hi.fir,$@) -X none --custom-transforms firrtl.transforms.WriteLowPB
+	../tools/firrtl/utils/bin/firrtl -i $(subst lo.pb,hi.fir,$@) --no-check-comb-loops --no-dce -X none --custom-transforms firrtl.transforms.WriteLowPB
 	mv circuit.lo.pb $@
 
 %.lo.fir:
-	../tools/firrtl/utils/bin/firrtl -i $(subst lo.fir,hi.fir,$@) -X low -o $@
+	../tools/firrtl/utils/bin/firrtl -i $(subst lo.fir,hi.fir,$@) --no-check-comb-loops --no-dce -X low -o $@
 
 clean:
 	rm -f chipyard.*.v
