@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "circt-fuzzer": "^0.3.0"
+  }
+}

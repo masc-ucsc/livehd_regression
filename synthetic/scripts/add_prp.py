@@ -6,9 +6,9 @@ def main():
     for num in nums:
       f = open("add_" + str(num) + ".prp", "w+")
 
-      f.write("    %s.__bits = 30\n")
-      f.write("    $a.__bits = 4\n")
-      f.write("    $b.__bits = 4\n")
+      f.write("    %s.__sbits = 30\n")
+      f.write("    $a.__sbits = 4\n")
+      f.write("    $b.__sbits = 4\n")
       for i in range(num):
           if i <= 1:
               f.write("    t%d = $a + $b\n" % (i))
@@ -17,7 +17,7 @@ def main():
           elif (i&0xFF) == 7:
               f.write("    t%d = t%d & (0xF0+1+2+3+4+5)\n" % (i, i-2))
           elif (i&0xFF) == 8:
-              f.write("    t%d = (t%d>>8) & 255u8\n" % (i, i-2))
+              f.write("    t%d = (t%d>>8) & 255\n" % (i, i-2))
           else:
               f.write("    t%d = t%d + t%d\n" % (i, i-1, i-2))
 

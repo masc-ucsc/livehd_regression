@@ -13,3 +13,5 @@ chipyard/chipyard.TestHarness.MegaBoomConfig.hi.fir: tools/firrtl/utils/bin/firr
 synthetic/generated/add_100.v:
 	cd synthetic ; ./setup.sh
 
+circt-fuzzer/firt_t1.orig.fir:
+	cd circt-fuzzer ; ./setup.sh
