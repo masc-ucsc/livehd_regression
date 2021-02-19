@@ -19,7 +19,7 @@ def main():
           if i == 0:
               f.write("    wire t0 = a ^ b;\n")
           elif i == num-1:
-              f.write("    wire s = t%d ^ a;\n" % (i-1))
+              f.write("    assign s = t%d ^ a;\n" % (i-1))
           else:
               f.write("    wire t%d = t%d ^ a;\n" % (i, i-1))
       f.write("\n\nendmodule")
