@@ -11,4 +11,10 @@ else
   cd firrtl
   sbt compile
   sbt assembly
+  cd ..
+fi
+
+
+if [ ! -d chisel3 ]; then
+  git clone git@github.com:chipsalliance/chisel3.git
 fi
