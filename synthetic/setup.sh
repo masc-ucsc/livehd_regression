@@ -7,6 +7,12 @@ do
   python $a
 done
 
+if [ ! -d ../../tools/chisel3 ]; then
+  cd ../../tools
+  git clone git@github.com:chipsalliance/chisel3.git
+  cd ../synthetic/generated
+fi
+
 
 # Chisel Related
 FIRRTL_EXE=../../tools/firrtl/utils/bin/firrtl
