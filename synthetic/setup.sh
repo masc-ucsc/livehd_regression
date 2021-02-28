@@ -4,7 +4,7 @@ mkdir -p generated
 cd generated
 for a in ../scripts/*.py
 do
-  python $a
+  python3 $a
 done
 
 if [ ! -d ../../tools/chisel3 ]; then
@@ -20,7 +20,7 @@ for filename in *.scala
 do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar 
   # compile only if foo.fir is not exists
-  if [ ! -f $pt.hi.pb ]; then
+  if [ ! -f $pt.hi.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
     mkdir -p ../../tools/chisel3/src/main/scala/$pt 
 
@@ -38,8 +38,10 @@ done
 for filename in *.fir 
 do
   pt=$(basename "$filename" .fir) # ./foo/bar.fir -> bar 
-  # compile only if foo.fir is not exists
-  if [ ! -f $pt.hi.pb ]; then
+  pt=$(basename "$pt" .hi)  # ./foo/bar.fir -> bar 
+  # compile only if foo.scala is not exists
+  if [ ! -f $pt.hi.fir ]; then
+    echo $pt
     echo "---------- Chirrtl Compilation: $pt.fir ----------"
 
     $FIRRTL_EXE -i   $pt.fir -X verilog
