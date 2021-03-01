@@ -1,6 +1,6 @@
 #!/usr/bin/python
 def main():
-    sub_chain_sizes = [125, 250, 500, 750, 1000, 1250, 1500, 1750, 2000]
+    sub_chain_sizes = [2, 125, 250, 500, 750, 1000, 1250, 1500, 1750, 2000]
     # sub_chain_sizes = [4]
     # instance_num  = 64
     instance_num  = 64
