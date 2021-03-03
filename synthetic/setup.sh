@@ -9,8 +9,10 @@ done
 
 if [ ! -d ../../tools/chisel3 ]; then
   cd ../../tools
-  git clone git@github.com:chipsalliance/chisel3.git
+  pwd
+  ./setup.sh
   cd ../synthetic/generated
+  pwd
 fi
 
 
