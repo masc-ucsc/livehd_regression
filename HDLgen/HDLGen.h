@@ -25,31 +25,35 @@ uint32_t xorshift32(uint32_t seed);
 // init_IO()
 // Creates input and output for module referenced by file
 // Returns number of inputs created for FILE f module
-int init_IO(FILE *f);
+int init_IO(FILE *v,FILE *c,uint32_t seed);
 
 // declareModule()
 // Prints verilog standard module declaration to file
 // Randomly creates and returns amount of input variables to be used
-int declareModule(FILE *f);
+int declareModule(FILE *f,FILE *c,uint32_t seed);
 
-// splitOutput
+// verilog_splitOutput
 // Same function as declareModule(), except it declares parts
 // of output wire
-void splitOutput(FILE *f, int inputs);
+void verilog_splitOutput(FILE *v, int inputs);
 
-// createIO()
+// chisel_splitOutput()
+// Concatonates all of the vals that make up the output of the module
+void chisel_splitOutput(FILE *c,int inputs);
+
+// verilog_createIO()
 // Prints to file either declarations of input or output wires based on it input is true
 // Creates number of instances in accordance with INPUT/BIT rules
 // Returns total width of sum of each instance created
-int createIO(FILE *f, bool input, int instances);
+int verilog_createIO(FILE *v, bool input, int instances);
 
-// printVerilogOutput
+// printVerilogChiselOutput()
 // Does assign statements for verilog file for the output of the module
-void printVerilogOutput(FILE *f,int inputs,int budget,uint32_t seed);
+void printVerilogChiselOutput(FILE *v,FILE* c,int inputs,int budget);
 
 // endFile()
 // Prints closing statement of each file
-void endFile(FILE *f);
+void endFile(FILE *v,FILE *c);
 
 // Creation functions --------------------------------------------------------
 
@@ -57,22 +61,22 @@ void endFile(FILE *f);
 // Uses recursive helper functions to create randomized functions
 // Length of functions decided by budget which determines how many recursive
 // iterations are allowed to occur within each function
-void functionGen(FILE *f, int inputs, int width, int budget,uint32_t seed);
+void functionGen(FILE *v,FILE *c, int inputs, int width, int budget);
 
 // concatGen()
 // Recursively fufills a bit width requirement through concatenating 
 // randomly chosen bit widths taken from inputs and other functions
-void concatGen(FILE *f, int inputs, int width, int budget,uint32_t seed);
+void concatGen(FILE *v, FILE *c,int inputs, int width, int budget);
 
 // binaryGen()
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
-void binaryGen(FILE *f, int inputs, int width, int budget, uint32_t seed);
+void binaryGen(FILE *v, FILE *c,int inputs, int width, int budget);
 
 // ternaryGen()
 // Recursively fufills a bit width requirement through a ternary opeartion
 // where the results are the necessary bit width
-void ternaryGen(FILE *f, int inputs, int width, int budget, uint32_t seed);
+void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget);
 
 // Helper functions ----------------------------------------------------------
 
@@ -81,11 +85,11 @@ void ternaryGen(FILE *f, int inputs, int width, int budget, uint32_t seed);
 // the width requested, depends on inputWidthRequest()
 // Also acts as a single bit random generator, using logical
 // and unary operators to produce values
-void randomInput(FILE *f,int inputs, int width, uint32_t seed);
+void randomInput(FILE *v,FILE *c,int inputs, int width);
 
 // inputWidthRequest(), helper function to randomInput()
 // Returns a random input variable based on
 // needed width specified, variable inferred based on how many
 // inputs exist in the circuit
-int inputWidthRequest(int inputs, int width, uint32_t seed);
+int inputWidthRequest(int inputs, int width);
 

@@ -11,15 +11,19 @@ using namespace std;
 
 int main(){
 	// Opens file
-	char filename[1024];
-	snprintf(filename, 1024, "randomverilog.v");
-	FILE *f = fopen(filename, "w");
+	char filename_v[1024];
+	char filename_c[1024];
+	snprintf(filename_v, 1024, "randomverilog.v");
+	snprintf(filename_c, 1024, "randomchisel.scala");
+	FILE *v = fopen(filename_v, "w");
+	FILE *c = fopen(filename_c,"w");
 
 	// Creates new verilog file
-	int inputs = init_IO(f);
+	int inputs = init_IO(v,c,4);
 	// prints assign statements
-	printVerilogOutput(f,inputs,4,324);
+	printVerilogChiselOutput(v,c,inputs,4);
+	chisel_splitOutput(c,inputs);
 	// ends file
-	endFile(f);
+	endFile(v,c);
 	
 }
