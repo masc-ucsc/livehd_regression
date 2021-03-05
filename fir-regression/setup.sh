@@ -17,45 +17,34 @@ for filename in chisel_src/*.scala
 do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
   # compile only if foo.fir is not exists
-  if [ ! -f firrtl_src/$pt.fir ]; then
+  if [ ! -f generated/$pt.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
-    mkdir -p ../tools/chisel3/src/main/scala/$pt
-    cp chisel_src/$pt.scala ../tools/chisel3/src/main/scala/$pt
-    cd ../tools/chisel3
+    cp chisel_src/$pt.scala chisel_bootstrap/src/main/scala/$pt
+    pushd .
+    cd chisel_bootstrap
 
-    sbt "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}"
+    # CHIRRTL PB
+    #sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}"
+    #mv $pt.ch.pb ../generated/
 
-    mv $pt.fir ../../fir-regression/firrtl_src
+    # CHIRRTL FIR
+    sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --module ${pt}.${pt}"
+    mv $pt.fir ../generated/
+
     rm -f $pt.anno.json
     rm -f $pt.v
-    cd ../../fir-regression
+    popd
   fi
-done
 
-# useless chisel dierectories
-rm -rf project
-rm -rf target
+  echo "---------- Chirrtl Compilation: $pt.fir ----------"
 
-
-for filename in firrtl_src/*.fir
-do
-  pt=$(basename "$filename" .fir) # ./foo/bar.fir -> bar
-  # compile only if foo.fir is not exists
-  if [ ! -f generated/$pt.hi.pb ]; then
-    echo "---------- Chirrtl Compilation: $pt.fir ----------"
-
-    $FIRRTL_EXE -i   firrtl_src/$pt.fir -X verilog
-    $FIRRTL_EXE -i   firrtl_src/$pt.fir -X high
-    $FIRRTL_EXE -i   firrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
-
-    mv $pt.v         generated
-    mv $pt.hi.fir    generated
-    mv circuit.hi.pb generated/$pt.hi.pb
-    rm -f $pt.fir
+  $FIRRTL_EXE -i   generated/$pt.fir -X verilog -o generated/${pt}.v
+  $FIRRTL_EXE -i   generated/$pt.fir -X high    -o generated/${pt}.hi.fir
+  $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
+  mv circuit.hi.pb generated/$pt.hi.pb
 
     # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X low
     # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteLowPB
     # mv $pt.lo.fir generated
     # mv circuit.lo.pb  generated/$pt.lo.pb
-  fi
 done
