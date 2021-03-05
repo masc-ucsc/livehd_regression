@@ -24,9 +24,10 @@ do
   # compile only if foo.fir is not exists
   if [ ! -f $pt.hi.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
+    rm -rf ../../tools/chisel3/src/main/scala/SNX*
     mkdir -p ../../tools/chisel3/src/main/scala/$pt 
 
-    cp $pt.scala ../../tools/chisel3/src/main/scala/$pt
+    cp -f $pt.scala ../../tools/chisel3/src/main/scala/$pt
     cd ../../tools/chisel3 
     sbt "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}"
     mv $pt.fir ../../synthetic/generated
