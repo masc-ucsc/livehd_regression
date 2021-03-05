@@ -15,7 +15,7 @@ generate: $(hi_pb) $(lo_pb) $(lo_fir)
 %.hi.fir:
 	gzip -cd < $(subst hi.fir,hi.fir.gz,$@) >$@
 
-%.v:%.fir
+%.v:%.hi.fir
 	../tools/firrtl/utils/bin/firrtl -i $< -X verilog -o $@
 
 # FIXME: Having output as circuit.hi.pb blocks the option of make -j
