@@ -13,13 +13,19 @@ fi
 
 FIRRTL_EXE=../tools/firrtl/utils/bin/firrtl
 
-for filename in chisel_src/*.scala
+if [ $# -eq 0 ]; then
+  inputs=chisel_src/*.scala
+else
+  inputs=$@
+fi
+
+for filename in ${inputs}
 do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
   # compile only if foo.fir is not exists
   if [ ! -f generated/$pt.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
-    cp chisel_src/$pt.scala chisel_bootstrap/src/main/scala/$pt
+    cp $filename chisel_bootstrap/src/main/scala/
     pushd .
     cd chisel_bootstrap
 
@@ -33,6 +39,7 @@ do
 
     rm -f $pt.anno.json
     rm -f $pt.v
+    rm -f chisel_bootstrap/src/main/scala/*.scala
     popd
   fi
 
