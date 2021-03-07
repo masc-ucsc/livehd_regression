@@ -1,4 +1,4 @@
-package design
+package MemoryController
 
 import chisel3._
 

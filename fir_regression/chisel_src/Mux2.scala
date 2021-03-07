@@ -1,5 +1,5 @@
 // See LICENSE.txt for license details.
-package design
+package Mux2
 
 import chisel3._
 

@@ -23,6 +23,7 @@ for filename in ${inputs}
 do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
   # compile only if foo.fir is not exists
+  echo $pt
   if [ ! -f generated/$pt.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
     cp $filename chisel_bootstrap/src/main/scala/
@@ -30,8 +31,8 @@ do
     cd chisel_bootstrap
 
     # CHIRRTL PB
-    #sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}"
-    #mv $pt.ch.pb ../generated/
+    sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}"
+    mv $pt.ch.pb ../generated/
 
     # CHIRRTL FIR
     sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --module ${pt}.${pt}"
@@ -49,6 +50,7 @@ do
   $FIRRTL_EXE -i   generated/$pt.fir -X high    -o generated/${pt}.hi.fir
   $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
   mv circuit.hi.pb generated/$pt.hi.pb
+  rm -f $pt.fir
 
     # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X low
     # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteLowPB

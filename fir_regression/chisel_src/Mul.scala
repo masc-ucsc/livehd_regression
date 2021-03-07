@@ -1,5 +1,5 @@
 // See LICENSE.txt for license details.
-package design
+package Mul
 
 import chisel3._
 import scala.collection.mutable.ArrayBuffer
