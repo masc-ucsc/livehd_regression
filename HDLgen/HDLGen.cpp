@@ -21,7 +21,7 @@
 
 #define BIT_MAX 10
 #define BIT_MIN BIT_MAX/2
-#define INPUT_LIMIT 10
+#define INPUT_LIMIT 20
 #define INPUT_MIN INPUT_LIMIT/2
 
 using namespace std;
@@ -67,26 +67,28 @@ const char *vlog_binary_ops[] = {
 	"&",	//00
 	"|",	//01
 	"^",	//02
-	"*",	//03
+	"+",	//03
 	"/",	//04
-	"%",	//05
-	"+",	//06
-	"-",	//07
+	"-",	//05
+	"*",	//06
+	"%",	//07
 	"<<",	//08
 	">>",	//09
+	">>>",	//10
 };
 
 const char *chisl_binary_ops[] = {	
 	"&",	//00
 	"|",	//01
 	"^",	//02
-	"*",	//03
+	"+",	//03
 	"/",	//04
-	"%",	//05
-	"+",	//06
-	"-",	//07
+	"-",	//05
+	"*",	//06
+	"%",	//07
 	"<<",	//08
 	">>",	//09
+	">>",	//10-signed shift
 };
 
 // Psuedo-Random Number Generation --------------------------------------------
@@ -113,10 +115,11 @@ uint32_t xorshift32(uint32_t seed=0) {
 
 // init_IO()
 // Creates input and output for module referenced by file
-// Returns number of inputs created for FILEs v and c
-int init_IO(FILE *v,FILE *c,uint32_t seed=0){
+// Returns number of inputs created for FILEs v and c, unless specified
+// If 0 inputs is passed in, a random amound of inputs is created
+int init_IO(FILE *v,FILE *c,uint32_t inputs,uint32_t seed=0){
 	// Creates verilog file
-	int inputs = declareModule(v,c,seed);	
+	inputs = declareModule(v,c,inputs,seed);	
 	verilog_splitOutput(v, inputs);
 	return inputs;
 }
@@ -124,27 +127,33 @@ int init_IO(FILE *v,FILE *c,uint32_t seed=0){
 // declareModule(), helper to init_IO()
 // Prints verilog standard module declaration to files
 // Randomly creates and returns amount of input variables to be used
-int declareModule(FILE *v,FILE *c,uint32_t seed=0){
+// If 0 inputs is passed in, a random amound of inputs is created
+int declareModule(FILE *v,FILE *c,uint32_t inputs,uint32_t seed=0){
 	// Verilog file creation
-	// Randomly creates number of inputs
-	uint32_t inputs = xorshift32(seed) % INPUT_LIMIT;	
-	inputs = ((inputs > INPUT_MIN) ? inputs : inputs + INPUT_MIN);
+	if(inputs){
+		//do nothing, use specified amonut of inputs
+	}
+	else{
+		// Randomly creates number of inputs
+		inputs = xorshift32(seed) % INPUT_LIMIT;	
+		inputs = ((inputs > INPUT_MIN) ? inputs : inputs + INPUT_MIN);
+	}
 	int output_width=0;
-	fprintf(v,"module random_verilog(");				//first line
+	fprintf(v,"module randomverilog(");				//first line
 	// Gnereates width of each delcared input, output width will be the input width sum
 	output_width = verilog_createIO(v,1,inputs);
 	fprintf(v, "\n	output [%d:0] io_y);\n",output_width-1);
 
 	// Chisel file creation
+	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
 	fprintf(c,"import chisel3.util._\n");	//necessary import for utils like Cat() and Mux()
-	fprintf(c, "\nclass random_chisel extends Module {\n");
+	fprintf(c, "\nclass randomchisel extends Module {\n");
 	fprintf(c, "	val io = IO(new Bundle {\n");
-	for(uint32_t i=0;i<inputs;i++){	//only delcares inputs, output wires width will be inferred
-		fprintf(c, "		val a%d = Input(%s(%d.W))\n",i,0%2?"SInt":"UInt",BIT_MIN+1+(i%(BIT_MAX-BIT_MIN+1)));	//turned off signed
-	}
+	chisel_createIO(c,1,inputs);
 	fprintf(c, "		val y = Output(UInt(%d.W))\n",output_width);	//sets output as unsigned
-	fprintf(c, "	})");
+	fprintf(c, "	})\n");
+	chisel_createIO(c,0,inputs);
 	return inputs;
 }
 
@@ -170,6 +179,21 @@ void chisel_splitOutput(FILE *c,int inputs){
 	}
 }
 
+// chisel_createIO()
+// Prints to file either declarations of input or output vals (wires) based on if input is 1
+// Creates number of instances in accordance with INPUT/BIT rules
+void chisel_createIO(FILE *c,bool input,int instances){
+
+	for(int i=0;i<instances;i++){	
+		if(input){
+			fprintf(c, "		val a%d = Input(%s(%d.W))\n",i,i%2?"SInt":"UInt",BIT_MIN+1+(i%(BIT_MAX-BIT_MIN+1)));	
+		}
+		else{
+			fprintf(c, "	val y%d = Wire(%s(%d.W))\n",i,i%2?"SInt":"UInt",BIT_MIN+1+(i%(BIT_MAX-BIT_MIN+1)));
+		}
+	}
+}
+
 // verilog_createIO(), helper to delcareModule() and splitOutput()
 // Prints to file either declarations of input or output wires based on it input is true
 // Creates number of instances in accordance with INPUT/BIT rules
@@ -179,9 +203,13 @@ int verilog_createIO(FILE *v, bool input, int instances){
 	const char* verilog_var = input ? "io_a" : "y";
 	int width=0;
 	int j;
+	if(input){	//need this for comparison to chisel, as clk and rst are implied inputs
+		fprintf(v, "\n	input clock," );
+		fprintf(v, "\n	input reset," );
+	}
 	// Formatted verilog declarations
 	for(int i=BIT_MIN;(i<=BIT_MAX)&&(i-BIT_MIN<instances);i++){
-		if(0%2){	//makes every other input/wire signed
+		if(i%2){	//makes every other input/wire signed
 			fprintf(v, "\n	%s signed [%d:0]",verilog_io,i);	//turned off signed
 		}
 		else{
@@ -202,8 +230,11 @@ int verilog_createIO(FILE *v, bool input, int instances){
 void printVerilogChiselOutput(FILE *v,FILE* c,int inputs,int budget){
 	for(int i=0;i<inputs;i++){
 		fprintf(v, "\n	assign y%d = ",i);
-		fprintf(c, "\n	val y%d = ",i);
+		fprintf(c, "\n	y%d := ",i);
 		functionGen(v,c,inputs,(BIT_MIN+1)+(i%(BIT_MAX-BIT_MIN+1)),budget);
+		if(i%2){
+			fprintf(c, ".asSInt");
+		}
 		fprintf(v, ";");
 	}
 }
@@ -225,7 +256,7 @@ void endFile(FILE *v,FILE *c){
 void functionGen(FILE *v,FILE *c, int inputs, int width, int budget){
 	// 3 main posiblities: concatonation, binary operation, and ternary operation
 	//switch(xorshift32()%3){
-	switch(0){
+	switch(1){
 		case 0 :	//concat
 			fprintf(v, "{");
 			fprintf(c, "Cat(");
@@ -283,6 +314,7 @@ void concatGen(FILE *v,FILE *c, int inputs, int width, int budget){
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
 void binaryGen(FILE *v,FILE *c, int inputs, int width, int budget){
+	uint32_t op=0;
 	budget--;
 	fprintf(v,"(");
 	fprintf(c,"(");
@@ -291,6 +323,12 @@ void binaryGen(FILE *v,FILE *c, int inputs, int width, int budget){
 		randomInput(v,c,inputs,width);
 	}
 	else{	
+		//roll for operator
+		op = xorshift32()%11;
+		if(op==10){	//righted right shift
+			fprintf(v, "$signed" );
+		}
+
 		//rolls whether or not to expand binary operation heirarchy
 		if(xorshift32()%2){	//expands
 			functionGen(v,c,inputs,width,budget);
@@ -300,8 +338,13 @@ void binaryGen(FILE *v,FILE *c, int inputs, int width, int budget){
 			randomInput(v,c,inputs,width);
 		}
 
-		//roll for operator
-		uint32_t op = xorshift32()%10;
+		
+		if(op==10){	//signed right shift
+			fprintf(c, ".asSInt");
+		}
+		else if(op==9){	//unsigned right shift
+			fprintf(c, ".asUInt" );
+		}
 		fprintf(v, " %s ",vlog_binary_ops[op]);
 		fprintf(c, " %s ",chisl_binary_ops[op]);
 
@@ -316,6 +359,9 @@ void binaryGen(FILE *v,FILE *c, int inputs, int width, int budget){
 	}
 	fprintf(v,")");
 	fprintf(c,")");
+	if(op>5){	//chisel *,%,>>,<< ops extend bit width, need to specify part select
+		fprintf(c, width==1?"(0)":"(%d,0)",width-1);
+	}
 }
 
 // ternaryGen()
@@ -333,7 +379,7 @@ void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget){
 		fprintf(c, "Mux(" );
 		randomInput(v,c,inputs,1);
 		fprintf(v, "?" );
-		fprintf(c, "," );
+		fprintf(c, ".asBool," );
 		randomInput(v,c,inputs,width);
 		fprintf(v, ":");
 		fprintf(c, "," );
@@ -351,7 +397,7 @@ void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget){
 			randomInput(v,c,inputs,1);
 		}
 		fprintf(v, "?" );
-		fprintf(c, "," );
+		fprintf(c, ".asBool," );
 		//rolls for first =true output
 		if(xorshift32()%2){
 			functionGen(v,c,inputs,width,budget);
@@ -387,16 +433,19 @@ void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget){
 // NOTE: EACH OF THE PRINT STATEMENTS HERE SHOULD BE REPLACED WITH FUNCTIONS
 // THAT PRINT THEM EACH IN THEIR RESPECTIVE LANGUAGES/FILES
 void randomInput(FILE *v,FILE *c,int inputs, int width){
-	int inputchosen;
+	int inputchosen,input_range;
 	uint32_t operationchosen;
 	int width_selected,width_selected_2;
 	int pos1,pos2,pos3,pos4;
 	if(width > (BIT_MIN+1)){	//needs specific input
-		width_selected = width + (BIT_MAX+2-width==0 ? 0 : xorshift32()%(BIT_MAX+2-width));	//prevents % by 0 error
+		input_range = inputs>(BIT_MAX-BIT_MIN) ? BIT_MAX+2-width : BIT_MIN+1+inputs-width;		//when there are less inputs than possible bit width combinations
+		width_selected = width + (input_range==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
 	}
 	else{	//otherwise selects random input
-		width_selected = (BIT_MIN+1)+(BIT_MIN+1==0 ? 0 : xorshift32()%(BIT_MIN+1));	//prevents % by 0 error
+		input_range = inputs>(BIT_MAX-BIT_MIN) ? BIT_MIN+1 : inputs;
+		width_selected = BIT_MIN+1+(xorshift32()%(input_range));	
 	}
+
 	pos1 = width_selected-width==0 ? 0 : xorshift32()%(width_selected-width);	//prevents % by 0 error, finds small value
 	pos2 = width_selected-pos1-1==0 ? pos1+1 : (xorshift32()%(width_selected-pos1-1))+pos1+1;	//prevents % by 0 error, finds random 2nd larger position
 	fprintf(v, "(");
@@ -420,10 +469,10 @@ void randomInput(FILE *v,FILE *c,int inputs, int width){
 				fprintf(v,"(%sio_a%d[%d:%d])",vlog_unary_ops[operationchosen],inputchosen,pos2,pos1);
 				//unary inversion isnt bit reduction
 				if(operationchosen==0){
-					fprintf(c,"(!io.a%d(%d,%d)).asUInt",inputchosen,pos2,pos1);
+					fprintf(c,"(!io.a%d(%d,%d))",inputchosen,pos2,pos1);
 				}
 				else{
-					fprintf(c,"(io.a%d(%d,%d)%s).asUInt",inputchosen,pos2,pos1,chisl_unary_ops[operationchosen]);
+					fprintf(c,"(io.a%d(%d,%d)%s)",inputchosen,pos2,pos1,chisl_unary_ops[operationchosen]);
 				}
 				break;
 			case 2 :	//logical operation

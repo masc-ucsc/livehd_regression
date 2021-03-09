@@ -25,12 +25,14 @@ uint32_t xorshift32(uint32_t seed);
 // init_IO()
 // Creates input and output for module referenced by file
 // Returns number of inputs created for FILE f module
-int init_IO(FILE *v,FILE *c,uint32_t seed);
+// If 0 inputs is passed in, a random amound of inputs is created
+int init_IO(FILE *v,FILE *c,uint32_t inputs,uint32_t seed);
 
 // declareModule()
 // Prints verilog standard module declaration to file
 // Randomly creates and returns amount of input variables to be used
-int declareModule(FILE *f,FILE *c,uint32_t seed);
+// If 0 inputs is passed in, a random amound of inputs is created
+int declareModule(FILE *v,FILE *c,uint32_t inputs,uint32_t seed);
 
 // verilog_splitOutput
 // Same function as declareModule(), except it declares parts
@@ -40,6 +42,12 @@ void verilog_splitOutput(FILE *v, int inputs);
 // chisel_splitOutput()
 // Concatonates all of the vals that make up the output of the module
 void chisel_splitOutput(FILE *c,int inputs);
+
+// chisel_createIO()
+// Prints to file either declarations of input or output vals (wires) based on if input is 1
+// Creates number of instances in accordance with INPUT/BIT rules
+// Returns total width of sum of each instance created
+void chisel_createIO(FILE *c,bool input,int instances);
 
 // verilog_createIO()
 // Prints to file either declarations of input or output wires based on it input is true

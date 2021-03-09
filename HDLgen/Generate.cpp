@@ -19,9 +19,9 @@ int main(){
 	FILE *c = fopen(filename_c,"w");
 
 	// Creates new verilog file
-	int inputs = init_IO(v,c,4);
+	int inputs = init_IO(v,c,5,44563);	//if inputs=0, creates random amount of inputs limited by INPUT_MAX
 	// prints assign statements
-	printVerilogChiselOutput(v,c,inputs,4);
+	printVerilogChiselOutput(v,c,inputs,15);
 	chisel_splitOutput(c,inputs);
 	// ends file
 	endFile(v,c);
