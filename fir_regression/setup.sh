@@ -26,6 +26,7 @@ do
   echo $pt
   if [ ! -f generated/$pt.fir ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
+    rm -f chisel_bootstrap/src/main/scala/*.scala
     cp $filename chisel_bootstrap/src/main/scala/
     pushd .
     cd chisel_bootstrap

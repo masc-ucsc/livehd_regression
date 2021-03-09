@@ -7,56 +7,88 @@ do
   python3 $a
 done
 
-if [ ! -d ../../tools/chisel3 ]; then
-  cd ../../tools
-  pwd
+cd ..
+if [ ! -f "../tools/chisel3/README.md" ]; then
+  echo "RUN tools setup first"
+  pushd .
+  cd ../tools
   ./setup.sh
-  cd ../synthetic/generated
-  pwd
+  popd
 fi
 
 
 # Chisel Related
-FIRRTL_EXE=../../tools/firrtl/utils/bin/firrtl
-for filename in *.scala
+FIRRTL_EXE=../tools/firrtl/utils/bin/firrtl
+
+
+if [ $# -eq 0 ]; then
+  inputs=generated/*.scala
+else
+  inputs=$@
+fi
+
+
+#bash natural sort
+pts=$(echo $inputs | tr " " "\n" | sort -V)
+echo $pts
+
+
+
+echo "-------------------- Chisel3 Full(Chisel -> ${FIRRTL_LEVEL}.v})-------------" > ../../stat.chisel3-full
+echo "-------------------- Chisel3     (Chisel -> ${FIRRTL_LEVEL}.pb)-------------" > ../../stat.chisel3-pb
+echo "-------------------- Chisel3     (Chisel -> .fir)-------------"               > ../../stat.chisel3-fir
+
+for filename in ${pts}
 do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar 
   # compile only if foo.fir is not exists
-  if [ ! -f $pt.hi.fir ]; then
-    echo "---------- Chisel Compilation: $pt.scala ----------"
-    rm -rf ../../tools/chisel3/src/main/scala/Snx*
-    mkdir -p ../../tools/chisel3/src/main/scala/$pt 
+  if [ ! -f generated/$pt.fir ]; then
+    rm -f ../fir_regression/chisel_bootstrap/src/main/scala/*.scala
+    cp $filename ../fir_regression/chisel_bootstrap/src/main/scala/
+    pushd .
+    cd ../fir_regression/chisel_bootstrap
+    rm -f *.json 
 
-    cp -f $pt.scala ../../tools/chisel3/src/main/scala/$pt
-    cd ../../tools/chisel3 
-    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}"
+    # Chisel full compilation (no ch.pb generation here)
+    echo "---------- Chisel -> Verilog: $pt.scala ----------"
+    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
+    echo "      ${pt}"      >> ../../../stat.chisel3-full
+    grep "Total time" pp    >> ../../../stat.chisel3-full
     mv $pt.fir ../../synthetic/generated
-    rm -f $pt.anno.json
-    rm -f $pt.v
-    cd ../../synthetic/generated
+    mv $pt.v   ../../synthetic/generated
+
+    # Chirrtl protobuf generation
+    echo "---------- Chisel -> ch.pb: $pt.scala ----------"
+    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" >pp2
+    echo "      ${pt}"      >> ../../../stat.chisel3-pb
+    grep "Total time" pp2   >> ../../../stat.chisel3-pb
+    mv $pt.ch.pb ../../synthetic/generated
+
+
+    # Chirrtl generation
+    echo "---------- Chisel -> .fir: $pt.scala ----------"
+    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    echo "      ${pt}"      >> ../../../stat.chisel3-fir
+    grep "Total time" pp3   >> ../../../stat.chisel3-fir
+    rm -f *.fir
+    rm -f *.anno.json
+    popd
+
+    # not break down firrtl lowering process for now 
+    # echo "---------- Chirrtl Compilation: $pt.fir ----------"
+    # $FIRRTL_EXE -i   generated/$pt.fir -X verilog -o generated/${pt}.v
+    # $FIRRTL_EXE -i   generated/$pt.fir -X high    -o generated/${pt}.hi.fir
+    # $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
+    # mv circuit.hi.pb generated/$pt.hi.pb
+    # rm -f $pt.fir
+
+    # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X low
+    # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteLowPB
+    # mv $pt.lo.fir generated
+    # mv circuit.lo.pb  generated/$pt.lo.pb
+
+
   fi
 done
-
-
-for filename in *.fir 
-do
-  pt=$(basename "$filename" .fir) # ./foo/bar.fir -> bar 
-  pt=$(basename "$pt" .hi)  # ./foo/bar.fir -> bar 
-  # compile only if foo.scala is not exists
-  if [ ! -f $pt.hi.fir ]; then
-    echo $pt
-    echo "---------- Chirrtl Compilation: $pt.fir ----------"
-
-    $FIRRTL_EXE -i   $pt.fir -X verilog
-    $FIRRTL_EXE -i   $pt.fir -X high
-    $FIRRTL_EXE -i   $pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
-    mv circuit.hi.pb $pt.hi.pb
-
-    rm -f $pt.fir
-    # $FIRRTL_EXE -i $pt.fir -X low
-    # $FIRRTL_EXE -i $pt.fir -X none --custom-transforms firrtl.transforms.WriteLowPB
-  fi
-done
-
 
 
