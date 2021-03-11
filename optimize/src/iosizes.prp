@@ -1,0 +1,11 @@
+
+$a.__ubits = 3
+$b.__sbits = 5
+
+%out_a.__sbits = 22 // useless large
+%out_b.__sbits = 22 // useless large
+%out_c.__sbits = 22 // useless large
+
+%out_b = $b & -1 // do nothing op
+$out_a = $a + 0
+%out_c = $a<<1

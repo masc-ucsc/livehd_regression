@@ -1,0 +1,4 @@
+$a.__ubits = 6
+$out.__ubits = 7 // BW should detect max val is less than 8
+%out = $a<<1
+

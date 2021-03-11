@@ -1,0 +1,11 @@
+
+$a.__ubits = 3
+$b.__sbits = 5
+
+%out_a.__ubits = 3 // Maybe move to iosizes.vow or iosizes.doc because it is not needed
+%out_b.__sbits = 5
+%out_c.__ubits = 4
+
+%out_b = $b
+$out_a = $a
+%out_c = $a<<1

@@ -1,0 +1,6 @@
+
+$a.__ubits = 2
+tmp1 = $a ^ $a
+tmp2 = $a
+%out = tmp1 ^ tmp2 ^ $a ^ $a
+
