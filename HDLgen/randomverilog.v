@@ -1,23 +1,13 @@
 module randomverilog(
 	input clock,
 	input reset,
-	input signed [5:0] io_a0,
-	input [6:0] io_a1,
-	input signed [7:0] io_a2,
-	input [8:0] io_a3,
-	input signed [9:0] io_a4,
-	output [39:0] io_y);
+	input [0:0] io_a0, io_a1, io_a2, io_a3, io_a4, io_a5, io_a6, io_a7, io_a8, io_a9, io_a10, io_a11, io_a12, io_a13, io_a14, io_a15, io_a16, io_a17, io_a18, io_a19,
+	output [0:0] io_y);
 
-	wire signed [5:0] y0;
-	wire [6:0] y1;
-	wire signed [7:0] y2;
-	wire [8:0] y3;
-	wire signed [9:0] y4;
-	assign io_y = {y0,y1,y2,y3,y4};
+	wire [0:0] y18;
+	assign io_y = {y18};
 
-	assign y0 = ((~io_a0[5:0]) | ((io_a1[5:0]) ^ (~io_a4[7:2])));
-	assign y1 = ((((io_a2[6:0]) * (io_a3[6:0])) / ((((~io_a2[6:0]) >> (((((io_a3[6:0]) >> ((~io_a4[6:0]) >> ((io_a2[6:0]) + (~io_a1[6:0])))) - ((io_a3[6:0]) & ((io_a4[6:0]) << (~io_a4[8:2])))) | ((~io_a1[6:0]) | (~io_a1[6:0]))) - (~io_a2[6:0]))) >> (~io_a4[8:2])) + (~io_a1[6:0]))) & ((io_a2[6:0]) / ((((~io_a1[6:0]) * (((io_a1[6:0]) * (((io_a4[6:0]) ^ (io_a4[8:2])) & (~io_a1[6:0]))) % ((io_a4[6:0]) / ((~io_a3[6:0]) & (io_a4[7:1]))))) % (io_a1[6:0])) / ($signed(~io_a3[7:1]) >>> ((~io_a1[6:0]) & (io_a1[6:0]))))));
-	assign y2 = ((io_a2[7:0]) % (((((io_a2[7:0]) % ((~io_a4[7:0]) | (io_a2[7:0]))) << ((~io_a3[7:0]) / (~io_a2[7:0]))) | (io_a2[7:0])) << ((io_a4[7:0]) * (((~io_a2[7:0]) * (((~io_a2[7:0]) * (((io_a3[7:0]) / (~io_a3[7:0])) / (~io_a4[7:0]))) % (io_a2[7:0]))) | (~io_a3[7:0])))));
-	assign y3 = ((io_a3[8:0]) | (~io_a3[8:0]));
-	assign y4 = ((~io_a4[9:0]) % (~io_a4[9:0]));
+	
+	assign y18 = (~((~(!io_a15[0:0]))?(io_a0[0]):(~{($signed(io_a13[0]) >>> {((io_a2[0])?((io_a3[0:0]<io_a6[0:0])):((&io_a10[0:0])))})})));
+
 endmodule

@@ -69,7 +69,7 @@ void endFile(FILE *v,FILE *c);
 // Uses recursive helper functions to create randomized functions
 // Length of functions decided by budget which determines how many recursive
 // iterations are allowed to occur within each function
-void functionGen(FILE *v,FILE *c, int inputs, int width, int budget);
+void functionGen(FILE *v,FILE *c, int inputs, int width, int budget,bool _signed);
 
 // concatGen()
 // Recursively fufills a bit width requirement through concatenating 
@@ -79,12 +79,12 @@ void concatGen(FILE *v, FILE *c,int inputs, int width, int budget);
 // binaryGen()
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
-void binaryGen(FILE *v, FILE *c,int inputs, int width, int budget);
+void binaryGen(FILE *v, FILE *c,int inputs, int width, int budget, bool _signed);
 
 // ternaryGen()
 // Recursively fufills a bit width requirement through a ternary opeartion
 // where the results are the necessary bit width
-void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget);
+void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget, bool _signed);
 
 // Helper functions ----------------------------------------------------------
 
@@ -93,7 +93,7 @@ void ternaryGen(FILE *v, FILE *c,int inputs, int width, int budget);
 // the width requested, depends on inputWidthRequest()
 // Also acts as a single bit random generator, using logical
 // and unary operators to produce values
-void randomInput(FILE *v,FILE *c,int inputs, int width);
+void randomInput(FILE *v,FILE *c,int inputs, int width, bool _signed);
 
 // inputWidthRequest(), helper function to randomInput()
 // Returns a random input variable based on
