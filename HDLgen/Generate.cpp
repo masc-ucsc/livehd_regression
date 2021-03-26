@@ -17,13 +17,12 @@ int main(){
 	snprintf(filename_c, 1024, "randomchisel.scala");
 	FILE *v = fopen(filename_v, "w");
 	FILE *c = fopen(filename_c,"w");
-
-	// Creates new verilog file
-	int inputs = init_IO(v,c,20,85432);	//if inputs=0, creates random amount of inputs limited by INPUT_MAX
-	// prints assign statements
-	printVerilogChiselOutput(v,c,inputs,5);
-	chisel_splitOutput(c,inputs);
-	// ends file
-	endFile(v,c);
 	
+	// Hierarchy tests
+	int inputs = 45;
+	int bit_max = 8;
+	int levels = 1;
+	int split = 2;
+	int budget = 5;
+	createHierarchy(v,c,inputs,bit_max,levels,split,budget);
 }
