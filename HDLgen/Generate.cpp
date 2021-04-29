@@ -19,10 +19,12 @@ int main(){
 	FILE *c = fopen(filename_c,"w");
 	
 	// Hierarchy tests
-	int inputs = 45;
-	int bit_max = 8;
+	int inputs = 15;
+	int bit_max = 7;
 	int levels = 1;
 	int split = 2;
-	int budget = 5;
+	int budget = 7;
+
 	createHierarchy(v,c,inputs,bit_max,levels,split,budget);
+
 }

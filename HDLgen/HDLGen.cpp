@@ -32,7 +32,7 @@ using namespace std;
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
 void createHierarchy(FILE *v,FILE *c,int inputs, int bit_max, int levels, int split, int budget){
-	xorshift32(432567);	//random start to generation
+	xorshift32(77657);	//random start to generation
 	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
 	fprintf(c,"import chisel3.util._\n");	//necessary import for utils like Cat() and Mux()
@@ -162,10 +162,7 @@ void createSubmodules(FILE *v,FILE *c,int inputs,int bit_max,int split,int level
 	}
 	int sub_bit_max = bit_max/split;
 	int sub_bit_min=sub_bit_max/2;
-	bool signed_offset=0;	//randomInput() works on assumption that all signed/unsigned inputs are same width
-	if((sub_bit_min%2)!=((bit_max/2)%2)){	//this is no longer true for submodules, so a signed function may have to be forced
-		signed_offset =1;
-	}
+	
 	string sub = "";
 	for(j=0;j<levels+1;j++){
 		sub = sub + "sub_";
@@ -181,13 +178,13 @@ void createSubmodules(FILE *v,FILE *c,int inputs,int bit_max,int split,int level
 			current_width = sub_bit_min+1+(j%(sub_bit_max-sub_bit_min+1));
 			fprintf(v, "			.io_a%d(",j);
 			fprintf(c, "	%sm_%d.io.a%d := ",sub_ptr,i,j);
-			if(signed_offset && (current_width>(bit_max/2))){
+			/*if(current_width%2){
 				fprintf(v, "$signed" );
-			}
-			randomInput(v,c,inputs,bit_max,current_width, current_width%2);	//needs to know if signed inputs align or not
-			if(signed_offset && (current_width>(bit_max/2))){
+			}*/
+			randomInput(v,c,inputs,bit_max,current_width, current_width%2,1);	//needs to know if signed inputs align or not
+			/*if(current_width%2){
 				fprintf(c, ".asSInt" );
-			}
+			}*/
 			fprintf(v, "),\n");
 			fprintf(c, "\n");
 		}
@@ -209,17 +206,17 @@ void declareOutput(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,i
 			current_width = bit_min+1+(i%(bit_max-bit_min+1));
 			fprintf(v, "\n	assign y%d = ",i);
 			fprintf(c, "\n	y%d := ",i);
-			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2);
+			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2,0,1,0);
 			fprintf(v, ";");
 		}
 		fprintf(v, "\n	assign io_y = {");
 		fprintf(c, "\n	io.y := Cat(");
-		for(int i=0;i<(inputs/2);i++){
+		for(int i=0;i<(inputs/2);i++){	//creates concatenated output
 			current_width = bit_min+1+(i%(bit_max-bit_min+1));
 			fprintf(v, "x%d,",i);
 			fprintf(v, "y%d%c",i,i==(inputs/2)-1?'}':',');
 			fprintf(c, "x%d(%d,0),",i,sub_output_width-1);
-			fprintf(c, "y%d(%d,0)%c",i, current_width,i==(inputs/2)-1?')':',');
+			fprintf(c, "y%d(%d,0)%c",i, current_width-1,i==(inputs/2)-1?')':',');
 		}
 	}
 	else{
@@ -227,15 +224,15 @@ void declareOutput(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,i
 			current_width = bit_min+1+(i%(bit_max-bit_min+1));
 			fprintf(v, "\n	assign y%d = ",i);
 			fprintf(c, "\n	y%d := ",i);
-			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2);
+			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2,0,1,0);
 			fprintf(v, ";");
 		}
 		fprintf(v, "\n	assign io_y = {");
 		fprintf(c, "\n	io.y := Cat(");
-		for(int i=0;i<inputs;i++){
+		for(int i=0;i<inputs;i++){	//creates concatenated output
 			current_width = bit_min+1+(i%(bit_max-bit_min+1));
 			fprintf(v, "y%d%c",i,i==inputs-1?'}':',');
-			fprintf(c, "y%d(%d,0)%c",i, current_width,i==inputs-1?')':',');
+			fprintf(c, "y%d(%d,0)%c",i, current_width-1,i==inputs-1?')':',');
 		}
 	}
 	fprintf(v, ";" );
