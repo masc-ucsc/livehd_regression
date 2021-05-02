@@ -1,0 +1,22 @@
+//code: test.prp
+
+//inputs
+$clock.__ubits = 1
+$reset.__ubits = 1
+$io_a0.__sbits = 5
+$io_a4.__sbits = 5
+
+
+//outputs
+%io_y.__ubits = 5
+
+//wires
+y0.__sbits = 5
+
+
+y0 := $io_a0 + $io_a4
+
+
+%io_y = y0
+
+
