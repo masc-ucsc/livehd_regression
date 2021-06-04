@@ -24,7 +24,7 @@ do
   pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
   # compile only if foo.fir is not exists
   echo $pt
-  if [ ! -f generated/$pt.fir ]; then
+  if [ ! -f generated/$pt.fir ] && [ "${pt: -4}" != ".fir" ]; then
     echo "---------- Chisel Compilation: $pt.scala ----------"
     rm -f chisel_bootstrap/src/main/scala/*.scala
     cp $filename chisel_bootstrap/src/main/scala/
@@ -45,12 +45,17 @@ do
     popd
   fi
 
+
   echo "---------- Chirrtl Compilation: $pt.fir ----------"
 
   $FIRRTL_EXE -i   generated/$pt.fir -X verilog -o generated/${pt}.v
   $FIRRTL_EXE -i   generated/$pt.fir -X high    -o generated/${pt}.hi.fir
-  $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
-  mv circuit.hi.pb generated/$pt.hi.pb
+  # $FIRRTL_EXE -i   generated/$pt.fir -X middle  -o generated/${pt}.mid.fir
+  # $FIRRTL_EXE -i   generated/$pt.fir -X low     -o generated/${pt}.low.fir
+
+
+  # $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
+  # mv circuit.hi.pb generated/$pt.hi.pb
   rm -f $pt.fir
 
     # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X low
