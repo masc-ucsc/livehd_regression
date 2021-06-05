@@ -2,13 +2,19 @@ package SmemStruct
 
 import chisel3._
 
+
+class InnerData extends Bundle {
+  val d1 = UInt(2.W)
+  val d2 = UInt(2.W)
+}
+
 class StructData extends Bundle {
-  val x_data = UInt(8.W)
-  val y_data = UInt(8.W)
+  // val xx = UInt(8.W)
+  val xx = new InnerData
+  val yy = UInt(4.W)
 }
 
 class SmemStruct extends Module {
-  val width: Int = 32
   val io = IO(new Bundle {
     val enable  = Input(Bool())
     val write   = Input(Bool())
