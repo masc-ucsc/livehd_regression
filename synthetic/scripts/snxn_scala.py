@@ -1,10 +1,10 @@
 #!/usr/bin/python
 def main():
-    sub_chain_sizes = [1, 50, 100, 150, 200, 250, 300, 350, 400, 450]
+    # sub_chain_sizes = [1, 50, 100, 150, 200, 250, 300, 350, 400, 450]
     # sub_chain_sizes = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-    # sub_chain_sizes = [1]
-    # instance_num  = 16
-    instance_num  = 256
+    sub_chain_sizes = [100]
+    instance_num  = 16
+    # instance_num  = 256
     # instance_num  = 32
     # instance_num  = 16
     for size in sub_chain_sizes:

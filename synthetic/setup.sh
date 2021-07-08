@@ -59,7 +59,7 @@ do
 
     # Chirrtl protobuf generation
     echo "---------- Chisel -> ch.pb: $pt.scala ----------"
-    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" >pp2
+    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
     echo "      ${pt}"      >> ../../../stat.chisel3-pb
     grep "Total time" pp2   >> ../../../stat.chisel3-pb
     mv $pt.ch.pb ../../synthetic/generated
@@ -73,20 +73,6 @@ do
     rm -f *.fir
     rm -f *.anno.json
     popd
-
-    # not break down firrtl lowering process for now 
-    # echo "---------- Chirrtl Compilation: $pt.fir ----------"
-    # $FIRRTL_EXE -i   generated/$pt.fir -X verilog -o generated/${pt}.v
-    # $FIRRTL_EXE -i   generated/$pt.fir -X high    -o generated/${pt}.hi.fir
-    # $FIRRTL_EXE -i   generated/$pt.fir -X none --custom-transforms firrtl.transforms.WriteHighPB
-    # mv circuit.hi.pb generated/$pt.hi.pb
-    # rm -f $pt.fir
-
-    # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X low
-    # $FIRRTL_EXE -i ./firrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteLowPB
-    # mv $pt.lo.fir generated
-    # mv circuit.lo.pb  generated/$pt.lo.pb
-
 
   fi
 done
