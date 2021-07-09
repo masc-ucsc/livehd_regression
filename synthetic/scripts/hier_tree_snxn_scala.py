@@ -6,13 +6,17 @@ import math
 import random
 
 def main():
-
     total_cells_list = [100000, 200000, 300000, 361000, 400000, 500000, 600000, 700000, 800000]
-    # total_cells_list = [400000]
+    # total_cells_list = [100]
     avg_children = 4
     avg_module_size = 300
-    # sd = 1658
+    # sd = 1658 // small BOOM SD
     sd = 100
+
+    # avg_children = 4
+    # avg_module_size = 4
+    # # sd = 1658
+    # sd = 1
 
     for total_cells in total_cells_list:
 
@@ -27,12 +31,12 @@ def main():
         module_get_assigned = 0
         total_assigned_cells = 0
 
-        for d in range(depth) :
+        for d in range(depth+1) :
             if (d == 0):
                 # get cell numbers
                 assigned_cells = 0
                 while True :
-                    assigned_cells = int(random.gauss(avg_module_size, sd))
+                    assigned_cells = int(random.gauss(avg_module_size, sd)) 
                     if assigned_cells > 0 :
                         break
 
@@ -58,13 +62,12 @@ def main():
                     module_get_assigned += 1
                     total_assigned_cells += assigned_cells
                     left_cells -= assigned_cells
-                    print("module:%d: %d cells" %(module_get_assigned, assigned_cells))
+                    print("module%d: at level %d, %d cells" %(module_get_assigned, d, assigned_cells))
                     print("total_assigned_cells %d" %(total_assigned_cells))
 
                     sub_name = "SnxnLv" + str(d) + "Inst" + str(i)
                     tree.create_node(str(assigned_cells) + " " + sub_name, sub_name, parent = top_name)
             else :        
-                done_num = 0
                 for i in range(avg_children ** (d)): # 0 ~ 15
                     if left_cells < 0 :
                         break
@@ -80,7 +83,7 @@ def main():
                             module_get_assigned += 1
                             total_assigned_cells += assigned_cells
                             left_cells -= assigned_cells
-                            print("module:%d: %d cells" %(module_get_assigned, assigned_cells))
+                            print("module%d: at level %d, %d cells" %(module_get_assigned, d, assigned_cells))
                             print("total_assigned_cells %d" %(total_assigned_cells))
 
                             sub_name = "SnxnLv" + str(d) + "Inst" + str(i)
@@ -104,6 +107,11 @@ def main():
         #step-5: create some interaction for the children output and the parent output
 
         f = open("%s.scala" %(tree[tree.root].tag.split()[1]), "w+")
+        f.write("// total modules: %s\n" %(module_num))
+        f.write("// design tree depth: %s\n" %(depth))
+        f.write("// design size: %s\n" %(total_assigned_cells))
+        f.write("// avg module size: %s\n" %(avg_module_size))
+        
         f.write("package %s\n" %(tree[tree.root].tag).split()[1])
         f.write("import chisel3._\n")
         f.write("import scala.language.reflectiveCalls\n\n")
