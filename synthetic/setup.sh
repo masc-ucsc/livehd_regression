@@ -78,3 +78,5 @@ do
 done
 
 
+python3 ./cal_fir2verilog.py ../../stat.chisel3-full ../../stat.chisel3-fir
+mv stat.fir2verilog ../../
