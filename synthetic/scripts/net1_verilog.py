@@ -22,7 +22,7 @@ def main():
               f.write("    assign out = tmp%d;\n" % (i-1))
           else:
               f.write("    wire tmp%d;\n" % (i))
-              f.write("    cell1 i%d(tmp%d, %d, tmp%d);\n" % (i,i,i,i-1)) # out, 0, 1
+              f.write("    net1_cell1 i%d(tmp%d, %d, tmp%d);\n" % (i,i,i,i-1)) # out, 0, 1
 
       f.write("\n\nendmodule")
       f.close()

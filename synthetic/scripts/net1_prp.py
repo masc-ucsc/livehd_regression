@@ -15,7 +15,7 @@ def main():
           elif i == num-1:
               f.write("    %%out = tmp%d\n" % (i-1))
           else:
-              f.write("    tmp%d = cell1(tmp%d, %d).out\n" % (i, i-1, i))
+              f.write("    tmp%d = net1_cell1(tmp%d, %d).out\n" % (i, i-1, i))
 
       f.close()
 if __name__ == "__main__":
@@ -23,4 +23,4 @@ if __name__ == "__main__":
 
 # WARNING:
 # Before running this test, run this in lgshell (populate the cell types)
-# inou.pyrope files:cell1.prp |> pass.compiler
+# inou.pyrope files:net1_cell1.prp |> pass.compiler
