@@ -51,7 +51,7 @@ do
 
     # Chisel full compilation (no ch.pb generation here)
     echo "---------- Chisel -> Verilog: $pt.scala ----------"
-    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
+    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
     echo "      ${pt}"      >> ../../../stat.chisel3-full
     grep "Total time" pp    >> ../../../stat.chisel3-full
     mv $pt.fir ../../synthetic/generated
@@ -59,7 +59,7 @@ do
 
     # Chirrtl protobuf generation
     echo "---------- Chisel -> ch.pb: $pt.scala ----------"
-    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
+    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
     echo "      ${pt}"      >> ../../../stat.chisel3-pb
     grep "Total time" pp2   >> ../../../stat.chisel3-pb
     mv $pt.ch.pb ../../synthetic/generated
@@ -67,7 +67,7 @@ do
 
     # Chirrtl generation
     echo "---------- Chisel -> .fir: $pt.scala ----------"
-    sbt -mem 36000 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
     echo "      ${pt}"      >> ../../../stat.chisel3-fir
     grep "Total time" pp3   >> ../../../stat.chisel3-fir
     rm -f *.fir
