@@ -4,19 +4,32 @@
 $clock.__ubits = 1
 $reset.__ubits = 1
 $io_a0.__sbits = 5
+$io_a1.__ubits = 6
+$io_a2.__sbits = 7
+$io_a3.__ubits = 8
 $io_a4.__sbits = 5
-
+$io_a5.__ubits = 6
+$io_a6.__sbits = 7
 
 //outputs
-%io_y.__ubits = 5
+%io_y.__ubits = 44
 
 //wires
 y0.__sbits = 5
-
+y1.__ubits = 6
+y2.__sbits = 7
+y3.__ubits = 8
+y4.__sbits = 5
+y5.__ubits = 6
+y6.__sbits = 7
 
 y0 := $io_a0 + $io_a4
+y1 := $io_a1 - $io_a5
+y2 := $io_a1 / $io_a2
+y3 := $io_a0@(0)++$io_a1@(0)++$io_a2@(0)++$io_a3@(0)++$io_a4@(0)++$io_a5@(0)++$io_a6@(0)++$io_a0@(1)
+y4 := $io_a0@(0:2) * $io_a1@(0:1)
+y5 := $io_a1 & $io_a5
+y6 := $io_a1 | $io_a2
 
-
-%io_y = y0
-
+%io_y = y0++y1++y2++y3++y4++y5++y6
 

@@ -1,0 +1,10 @@
+$a.__ubits = 5
+all = ($a@(0:4), $a@(0:4))
+%io_y = all@(0:9)
+
+/* Relevant discussion from slack: 
+The problem is that the all@(0:9) needs the sizes of a to compute the << but this is done in the bitwidth pass.
+THe problem is that the bitwidth pass needs the input as constant, but this is done in the cprop pass.
+Summary, the bitwidth needs the cprop before finishing the bitwidth, 
+but calling the cprop does not work because it needs half of the work done by the bitwidth to work.... (chiken egg problem)
+*/
