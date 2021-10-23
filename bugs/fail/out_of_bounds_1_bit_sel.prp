@@ -1,0 +1,28 @@
+$a.__sbits = 5
+
+%c = $a@(6) 
+
+// SOURCE OF THE ISSUE:
+// Selecting a single bit out of range of the wires width
+// seems to return some interesting results. Don't know if this is 
+// the intent of the design, but it would make more sense to either
+// throw an error if out of bounds or copy the MSB.
+
+// GENERATED VERILOG:
+//    input signed [4:0] a
+//  ,output reg signed [2:0] c
+// ...
+// reg signed [4:0] t_pin30_0;
+// reg [1:0] \___unsign_t_pin30_0%c_0 ;
+// ...
+//  t_pin30_0[4:0] = a;
+//  \___unsign_t_pin30_0%c_0  = t_pin30_0[2:1];
+// ...
+//  c = \___unsign_t_pin30_0%c_0 ;
+
+// ADDITIONAL COMMENTS:
+// The main thing to focus on is that this created a 2-bit wire
+// which is inconsistent with typical single bit part selects, whichj
+// only create single bit wires.
+// 2-bit wire in question:
+// \___unsign_t_pin30_0%c_0  = t_pin30_0[2:1];

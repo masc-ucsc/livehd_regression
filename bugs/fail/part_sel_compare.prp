@@ -1,0 +1,26 @@
+$io_a0.__sbits = 2
+$io_a1.__sbits = 5
+
+%c.__sbits = 1
+
+a.__sbits = 2
+a = $io_a0
+
+b.__sbits = 5
+b = $io_a4
+
+
+%c = a>=b@(0:1)
+
+// ERROR MESSAGE GENERATED:
+// livehd > lgraph.open name:test |> inou.cgen.verilog odir:pyropetest/
+// inline:0:0 error: node:n65_attr_set_lgtest does not have bits set. It needs bits to generate correct verilog
+// Pass::Error: node:n65_attr_set_lgtest does not have bits set. It needs bits to generate correct verilog
+// elab/elab_scanner.cpp:461 :assertion false failed
+
+// SOURCE OF THE ISSUE: 
+// Bit selecting either (or both) of the inputs to a comparator operation
+
+// ADDITIONAL COMMENTS:
+// Broken for all comparators:
+// >, <,  >=, <=, ==, !=

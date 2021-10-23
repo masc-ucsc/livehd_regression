@@ -1,0 +1,24 @@
+$a.__sbits = 5
+$b.__sbits = 5
+
+%c.__sbits = 1
+
+%c = $a >= $b
+
+// SOURCE OF THE ISSUE:
+// >= and <= to doesn't translate to verilog properly
+// Verilog generated doesn't reverse the direction of the comparator
+
+// GENERATED VERILOG:
+//    input signed [4:0] a
+//    ,input signed [4:0] b
+//    ,output reg signed c
+//    ...
+//    c = (~(a > b));
+
+// ADDITIONAL COMMENTS:
+// The simple fix to this is probably just reversing the comparator direction
+// instead the verilog generated should be 
+// c = (~(a < b));
+// when pyrope is
+// %c = $a >= $b
