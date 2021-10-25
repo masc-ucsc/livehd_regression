@@ -4,17 +4,13 @@ $b.__sbits = 5
 %c = $a@(1) + $b@(0)
 
 // SOURCE OF THE ISSUE:
-// Don't know what the intent here was, but selecting a single bit
-// is inconsistent with part selecting a range. The inconsistency lies
-// in what bits are selected. What seems correct is the current translation:
-// %c = $a@(1:2) + $b@(1:2)
-// inou.cgen.verilog >
-//   t_pin57_0[4:0] = a;
-//  ___unsign_t_pin57_0___t3_0 = t_pin57_0[2:1];
-//  t_pin70_0[4:0] = b;
-//  ___unsign_t_pin70_0___t6_0 = t_pin70_0[2:1];
-// Meanwhile, selecting a single bit in pyrope introduces an off-by-one error
-// where the bit selected is one behind the desired bit.
+// While trying to mask with a zero value, LiveHD
+// forgets to insert any value into what the mask would
+// produce which would be nothing technically.
+// It should instead probably produce 1'b0 or
+// any constant variation of a zero-value.
+// Whenether to set the width of the zero-value to a single
+// bit or to the width of the node it is conncted to is TBD.
 
 // GENERATED VERILOG:
 //   t_pin39_0[4:0] = a;
@@ -24,4 +20,3 @@ $b.__sbits = 5
 
 // TLDR:
 // When doing a@(0), it creates in verilog {} which is invalid syntax
-// When doing a@(1), in creates in verilog the bit select a[0] (don't know if this was intentional or not)

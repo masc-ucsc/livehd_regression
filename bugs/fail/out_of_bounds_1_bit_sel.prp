@@ -1,28 +1,24 @@
-$a.__sbits = 5
+$a1.__sbits = 10
 
-%c = $a@(6) 
+%y2 = $a1@(0:0)
 
 // SOURCE OF THE ISSUE:
-// Selecting a single bit out of range of the wires width
-// seems to return some interesting results. Don't know if this is 
-// the intent of the design, but it would make more sense to either
-// throw an error if out of bounds or copy the MSB.
+// Selecting a single bit using range syntax throws an error in LiveHD
+// only when it is trying to select the LSB. Anything else seems to work properly
+// such as:
 
-// GENERATED VERILOG:
-//    input signed [4:0] a
-//  ,output reg signed [2:0] c
-// ...
-// reg signed [4:0] t_pin30_0;
-// reg [1:0] \___unsign_t_pin30_0%c_0 ;
-// ...
-//  t_pin30_0[4:0] = a;
-//  \___unsign_t_pin30_0%c_0  = t_pin30_0[2:1];
-// ...
-//  c = \___unsign_t_pin30_0%c_0 ;
+// %y2 = $a1@(3:3) 
 
-// ADDITIONAL COMMENTS:
-// The main thing to focus on is that this created a 2-bit wire
-// which is inconsistent with typical single bit part selects, whichj
-// only create single bit wires.
-// 2-bit wire in question:
-// \___unsign_t_pin30_0%c_0  = t_pin30_0[2:1];
+// |> inou.cgen.verilog
+
+//   t_pin115_0[9:0] = a1;
+//  \___unsign_t_pin115_0%y2_1  = t_pin115_0[3];
+
+// This successfully generated the proper verilog which despite
+// specifying a range of a single bit, still produced the bit isolated in
+// the proper position
+
+// ERROR MESSAGE:
+// Parsing SUCCESSFUL!
+// lgshell: core/node_pin.hpp:338: constexpr bool Node_pin::is_driver() const: Assertion `idx' failed.
+// Aborted (core dumped)
