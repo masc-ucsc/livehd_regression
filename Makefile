@@ -15,3 +15,6 @@ synthetic/generated/add_100.v:
 
 circt-fuzzer/firt_t1.orig.fir:
 	cd circt-fuzzer ; ./setup.sh
+
+HDLGen:
+	make -C HDLgen

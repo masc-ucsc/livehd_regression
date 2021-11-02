@@ -31,8 +31,8 @@ using namespace std;
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v,FILE *c,int inputs, int bit_max, int levels, int split, int budget){
-	xorshift32(77657);	//random start to generation
+void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants){
+	xorshift32(seed);	//random start to generation
 	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
 	fprintf(c,"import chisel3.util._\n");	//necessary import for utils like Cat() and Mux()
@@ -52,15 +52,15 @@ void createHierarchy(FILE *v,FILE *c,int inputs, int bit_max, int levels, int sp
 		}
 
 		// Prints beginnings of each file
-		sub_output_width = declareModule(v,c,current_inputs,current_bit_max,levels,split,has_child);
+		sub_output_width = declareModule(v, c, p, current_inputs, current_bit_max, levels, split, has_child);
 		// Prints wires
-		declareWires(v,c,current_inputs,current_bit_max,sub_output_width,has_child);
+		declareWires(v, c, p, current_inputs, current_bit_max, sub_output_width, has_child, allow_constants);
 		// Prints submodule instantiations
 		if(has_child){
-			createSubmodules(v,c,current_inputs,current_bit_max,split,levels);
+			createSubmodules(v, c, p, current_inputs, current_bit_max, split, levels, allow_constants);
 		}
 		// Prints assigns and concatenated output
-		declareOutput(v,c, current_inputs, current_bit_max,sub_output_width, budget-levels, has_child);
+		declareOutput(v, c, p, current_inputs, current_bit_max, sub_output_width, budget-levels, has_child, allow_constants);
 		// Resets values for next loop
 		current_inputs = inputs;
 		current_bit_max = bit_max;
@@ -73,7 +73,7 @@ void createHierarchy(FILE *v,FILE *c,int inputs, int bit_max, int levels, int sp
 // Randomly creates and returns amount of input variables to be used
 // If 0 inputs is passed in, a random amound of inputs is created
 // Returns sub modules output width, or 0 if there is no child
-int declareModule(FILE *v,FILE *c,int inputs,int bit_max,int levels, int split,bool has_child){
+int declareModule(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, bool has_child){
 	// First necessary lines, names submodule if necessary
 	fprintf(v,"module ");
 	fprintf(c, "\nclass ");
@@ -86,16 +86,18 @@ int declareModule(FILE *v,FILE *c,int inputs,int bit_max,int levels, int split,b
 	fprintf(c, "	val io = IO(new Bundle {\n");
 
 	// Declares Inputs/Outputs depending on if the module has a child (submodule) or not
-	return verilog_chiselIO(v,c,inputs,bit_max,levels,split,has_child);
+	return verilog_chiselIO(v,c,p,inputs,bit_max,levels,split,has_child);
 }
 
 // verilog_chiselIO()
 // Helper (more like doer of pretty much everything) to declareModule
 // Prints to file inputs and outputs of currently declaring module
 // Returns sub modules output width, or 0 if there is no child
-int verilog_chiselIO(FILE *v,FILE *c,int inputs,int bit_max,int levels,int split,bool has_child){
+int verilog_chiselIO(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, bool has_child){
 	fprintf(v, "	input clock,\n" );	//need this for comparison to chisel, as clk and rst are implied inputs
 	fprintf(v, "	input reset,\n" );
+	fprintf(p, "$clock.__sbits = 1\n");
+	fprintf(p, "$reset.__sbits = 1\n");
 	int i;
 	int output_width=0;
 	int current_width=0;
@@ -121,6 +123,7 @@ int verilog_chiselIO(FILE *v,FILE *c,int inputs,int bit_max,int levels,int split
 		current_width = bit_min+1+(i%(bit_max-bit_min+1));
 		fprintf(v, "	input %s[%d:0] io_a%d,\n",current_width%2?"signed ":"",current_width-1,i);
 		fprintf(c, "		val a%d = Input(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
+		fprintf(p, "$io_a%d.__sbits = %d\n",i,current_width);	 //pyrope always uses signed IO, better to create internal wires that copy verilog/chisel unsigned wires
 		if(!has_child){
 			output_width += current_width;
 		}
@@ -128,12 +131,13 @@ int verilog_chiselIO(FILE *v,FILE *c,int inputs,int bit_max,int levels,int split
 	fprintf(v, "	output [%d:0] io_y);\n",output_width-1);
 	fprintf(c, "		val y = Output(UInt(%d.W))\n",output_width);
 	fprintf(c, "	})\n");
+	fprintf(p, "%%io_y.__sbits = %d\n",output_width);  //pyrope always uses signed IO, better to just set it as signed than have it create a unsigned output forcing width+1
 	return sub_output_width;
 }
 
 // declareWires()
 // Createswires which will serve either as the output of the top level, or as connections to lower levels
-void declareWires(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,bool has_child){
+void declareWires(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, bool has_child, bool allow_constants){
 	fprintf(v, "\n" );
 	fprintf(c, "\n" );
 	int i,current_width;
@@ -145,16 +149,31 @@ void declareWires(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,bo
 		}
 		
 	}
+	fprintf(v, "\n");
+	fprintf(c, "\n");
+	if(allow_constants){	//does the same thing as generic top level wires, only all operands are constants
+		for(i=0;i<(inputs/(has_child?2:1));i++){	//prints top level logic wires
+			current_width = bit_min+1+(i%(bit_max-bit_min+1));
+			fprintf(v, "	wire %s[%d:0] b%d;\n",current_width%2?"signed ":"",current_width-1,i);
+			fprintf(c, "	val b%d = Wire(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
+		}
+	}
+	fprintf(v, "\n");
+	fprintf(c, "\n");
 	for(i=0;i<(inputs/(has_child?2:1));i++){	//prints top level logic wires
 		current_width = bit_min+1+(i%(bit_max-bit_min+1));
 		fprintf(v, "	wire %s[%d:0] y%d;\n",current_width%2?"signed ":"",current_width-1,i);
 		fprintf(c, "	val y%d = Wire(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
+		//pyrope always has signed IO, so we need to create wires that represent the unsigned IO verilog/chisel uses
+		fprintf(p, "\na%d.__%cbits = %d\n",i,current_width%2?'s':'u',current_width);
+		fprintf(p, "a%d = $io_a%d\n",i,i);
+		fprintf(p, "y%d.__%cbits = %d\n",i,current_width%2?'s':'u',current_width);
 	}
 }
 
 // declareSubmodules()
 // Handles declaration of each submodule, given the previously generates x wires for their output
-void createSubmodules(FILE *v,FILE *c,int inputs,int bit_max,int split,int levels){
+void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants){
 	int i,j,current_width;
 	int sub_inputs = inputs/split;
 	if(sub_inputs<1){
@@ -181,7 +200,7 @@ void createSubmodules(FILE *v,FILE *c,int inputs,int bit_max,int split,int level
 			/*if(current_width%2){
 				fprintf(v, "$signed" );
 			}*/
-			randomInput(v,c,inputs,bit_max,current_width, current_width%2,1);	//needs to know if signed inputs align or not
+			randomInput(v, c, p, inputs, bit_max, current_width, current_width%2, 1, 0, allow_constants, j, 1);	//needs to know if signed inputs align or not
 			/*if(current_width%2){
 				fprintf(c, ".asSInt" );
 			}*/
@@ -196,23 +215,29 @@ void createSubmodules(FILE *v,FILE *c,int inputs,int bit_max,int split,int level
 
 // declareOutput()
 // Does assign statements for each top level wire and connects all wires to concatenated output
-void declareOutput(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,int budget,bool has_child){
+void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants){
 	fprintf(v, "\n" );
 	fprintf(c, "\n" );
 	int i, current_width;
-	int bit_min = bit_max/2;
+	int prp_shift_counter = 0;	//due to a lack of prp support for concat, we must shift and OR wires into the output
 	if(has_child){
+		if(allow_constants){
+			for(i=0;i<(inputs/2);i++){	//assigns top level complex constant declarations
+				current_width = getInputWidth(bit_max, i);
+				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child);
+			}
+		}
+		fprintf(v, "\n");
+		fprintf(c, "\n");
 		for(i=0;i<(inputs/2);i++){	//assigns top level wires
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
-			fprintf(v, "\n	assign y%d = ",i);
-			fprintf(c, "\n	y%d := ",i);
-			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2,0,1,0);
-			fprintf(v, ";");
+			current_width = getInputWidth(bit_max, i);
+			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child);
+
 		}
 		fprintf(v, "\n	assign io_y = {");
 		fprintf(c, "\n	io.y := Cat(");
-		for(int i=0;i<(inputs/2);i++){	//creates concatenated output
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
+		for(i=0;i<(inputs/2);i++){	//creates concatenated output TO-DO: REVERSE ORDER OF WIRES PRINTED
+			current_width = getInputWidth(bit_max, i);
 			fprintf(v, "x%d,",i);
 			fprintf(v, "y%d%c",i,i==(inputs/2)-1?'}':',');
 			fprintf(c, "x%d(%d,0),",i,sub_output_width-1);
@@ -220,22 +245,32 @@ void declareOutput(FILE *v,FILE *c,int inputs,int bit_max,int sub_output_width,i
 		}
 	}
 	else{
+		if(allow_constants){
+			for(i=0;i<inputs;i++){	//assigns top level complex constant declarations
+				current_width = getInputWidth(bit_max, i);
+				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child);
+			}
+		}
+		fprintf(v, "\n");
+		fprintf(c, "\n");
 		for(i=0;i<inputs;i++){	//assigns top level wires
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
-			fprintf(v, "\n	assign y%d = ",i);
-			fprintf(c, "\n	y%d := ",i);
-			functionGen(v,c,inputs,bit_max,current_width,budget,current_width%2,0,1,0);
-			fprintf(v, ";");
+			current_width = getInputWidth(bit_max, i);
+			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child);
+			prp_shift_counter += current_width;
 		}
 		fprintf(v, "\n	assign io_y = {");
 		fprintf(c, "\n	io.y := Cat(");
-		for(int i=0;i<inputs;i++){	//creates concatenated output
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
-			fprintf(v, "y%d%c",i,i==inputs-1?'}':',');
-			fprintf(c, "y%d(%d,0)%c",i, current_width-1,i==inputs-1?')':',');
+		fprintf(p, "\n %%io_y =");
+		for(i=inputs-1;i>=0;i--){	//creates concatenated output
+			current_width = getInputWidth(bit_max, i);
+			prp_shift_counter -= current_width;
+			fprintf(v, "y%d%c",i,!i?'}':',');
+			fprintf(c, "y%d(%d,0)%c",i, current_width-1, !i?')':',');
+			fprintf(p, " ((y%d & %d) << %d) %c",i, (1 << current_width) - 1, prp_shift_counter, !i?' ':'|');
 		}
 	}
 	fprintf(v, ";" );
 	fprintf(v, "\nendmodule\n");
 	fprintf(c, "\n}\n" );
 }
+

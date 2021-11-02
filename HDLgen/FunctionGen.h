@@ -25,22 +25,18 @@ uint32_t xorshift32(uint32_t seed);
 // Uses recursive helper functions to create randomized functions
 // Length of functions decided by budget which determines how many recursive
 // iterations are allowed to occur within each function
-void functionGen(FILE *v,FILE *c, int inputs, int bit_max, int width, int budget,bool _signed, bool force_concat, bool allow_invert, bool no_mult);
+void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
 
 // concatGen()
 // Recursively fufills a bit width requirement through concatenating 
 // randomly chosen bit widths taken from inputs and other functions
-void concatGen(FILE *v, FILE *c,int inputs, int bit_max, int width, int budget, bool force_concat, bool no_mult);
+void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
 
 // binaryGen()
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
-void binaryGen(FILE *v, FILE *c,int inputs, int bit_max, int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult);
+void binaryGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
 
-// ternaryGen()
-// Recursively fufills a bit width requirement through a ternary opeartion
-// where the results are the necessary bit width
-void ternaryGen(FILE *v, FILE *c,int inputs, int bit_max, int width, int budget, bool _signed, bool allow_invert, bool no_mult);
 
 // Helper functions ----------------------------------------------------------
 
@@ -49,7 +45,7 @@ void ternaryGen(FILE *v, FILE *c,int inputs, int bit_max, int width, int budget,
 // the width requested, depends on inputWidthRequest()
 // Also acts as a single bit random generator, using logical
 // and unary operators to produce values
-void randomInput(FILE *v,FILE *c,int inputs, int bit_max, int width, bool _signed, bool allow_invert);
+void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, bool _signed, bool allow_invert, bool force_constants, bool allow_constants, int limit, bool has_child);
 
 // inputWidthRequest(), helper function to randomInput()
 // Returns a random input variable based on
@@ -57,3 +53,18 @@ void randomInput(FILE *v,FILE *c,int inputs, int bit_max, int width, bool _signe
 // inputs exist in the circuit
 int inputWidthRequest(int inputs, int bit_max, int width);
 
+// matchInputWidth(), helper function to randomInput()
+// Returns true if the wire number passed in matches the width passed in
+bool matchInputWidth(int inputs, int bit_max, int width, int wire_number);
+
+// randomConstant()
+// Helper to any any function than needs a random constant printed given width and signness
+void randomConstant(FILE *v, FILE *c, int width, bool _signed);
+
+// getInputWidth()
+// Returns an inputs width given its wire number
+int getInputWidth(int bit_max, int wire_number);
+
+// printAssignments()
+// Takes care of possible conditionals and generic wire assignments
+void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, int wire_number, bool _signed, bool force_constants, bool allow_constants, bool has_child);
