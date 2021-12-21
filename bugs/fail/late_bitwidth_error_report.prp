@@ -1,0 +1,63 @@
+$a.__sbits = 5 //INCREASING THIS TO 6 FIXES THE CONSTRAINT
+$b.__sbits = 6
+%out.__sbits = 3
+
+c.__sbits = 5 //INCREASING THIS VALUE HAS NO EFFECT
+// ASSIGNMENT 1 - CAUSES THE ERROR
+if (($a@(2))) {
+	c = $b@(0:4) }
+else {
+	c = $a
+}
+// ASSIGNMENT 2 - WORKS
+//c = $b@(0:4)
+// ASSIGNMENT 3 - WORKS
+//c = $a
+
+%out = c@(0:2) //REMOVING THE @(0:2) HERE ALLOWS THE CODE TO COMPILE THOUGH THE RESULT IS 6 BITS WIDE INSTEAD OF THE DESIRED 3
+
+
+// SOURCE OF THE ISSUE:
+// c is being constrained to 5sbits by the else case assignment to $a which is 5sbits
+// while the if case is assigning it to $b@(0:4) which is 6sbits. One might expect this
+// to be an issue whenever c is used elsewhere, but the error only appears when get_mask()
+// is called on c. Furthermore, when c is assigned to %out, %out is inferred to be 6sbits.
+// It could be argued that the error should be reported whenever c is used.
+
+// ERROR MESSAGE:
+/*
+inou.pyrope files:/home/mark/test.prp |> pass.lnast_tolg |> pass.cprop |> pass.bitwidth |> dump
+Pass::Error: bitwidth mismatch at node n93_attr_set_lgtest. 
+Variable  needs 6sbits, but constrained to 5sbits
+
+elab/elab_scanner.cpp:461 :assertion false failed
+*/
+
+// VERILOG GENERATED (WHEN LAST LINE IS %out = c)
+/*
+module test(
+   input signed [4:0] a
+  ,input signed [5:0] b
+  ,output reg signed [5:0] out
+);
+reg signed [4:0] t_pin77_0;
+reg ___unsign_t_pin77_0___t2_0;
+reg signed [5:0] t_pin64_0;
+reg [4:0] ___unsign_t_pin64_0c_1;
+reg signed [5:0] c_3;
+always_comb begin
+  t_pin77_0[4:0] = a;
+  ___unsign_t_pin77_0___t2_0 = t_pin77_0[1];
+  t_pin64_0[5:0] = b;
+  ___unsign_t_pin64_0c_1 = t_pin64_0;
+   if ((|___unsign_t_pin77_0___t2_0)) begin
+     c_3 = ___unsign_t_pin64_0c_1;
+   end else begin
+     c_3 = a;
+   end
+end
+always_comb begin
+  out = c_3;
+end
+endmodule
+*/
