@@ -1,13 +1,19 @@
 #!/bin/bash
+# export SBT_OPTS="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" 
 
-mkdir -p generated
-cd generated
-for a in ../scripts/*.py
-do
-  python3 $a
-done
+# export SBT_OPTS="-Xms512M -Xmx1024M -Xss2M -XX:MaxMetaspaceSize=1024M"
+export JAVA_OPTS=""
+export SBT_OPTS=""
 
-cd ..
+# mkdir -p generated
+# cd generated
+# for a in ../scripts/*.py
+# do
+#   python3 $a
+# done
+#
+# cd ..
+
 if [ ! -f "../tools/chisel3/README.md" ]; then
   echo "RUN tools setup first"
   pushd .
@@ -51,7 +57,7 @@ do
 
     # Chisel full compilation (no ch.pb generation here)
     echo "---------- Chisel -> Verilog: $pt.scala ----------"
-    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
+    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
     echo "      ${pt}"      >> ../../../stat.chisel3-full
     grep "Total time" pp    >> ../../../stat.chisel3-full
     mv $pt.fir ../../synthetic/generated
@@ -59,7 +65,8 @@ do
 
     # Chirrtl protobuf generation
     echo "---------- Chisel -> ch.pb: $pt.scala ----------"
-    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
+    # JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
+    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
     echo "      ${pt}"      >> ../../../stat.chisel3-pb
     grep "Total time" pp2   >> ../../../stat.chisel3-pb
     mv $pt.ch.pb ../../synthetic/generated
@@ -67,7 +74,9 @@ do
 
     # Chirrtl generation
     echo "---------- Chisel -> .fir: $pt.scala ----------"
-    JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    # JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    # sbt -J-Xmx64g -mem 16384 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
     echo "      ${pt}"      >> ../../../stat.chisel3-fir
     grep "Total time" pp3   >> ../../../stat.chisel3-fir
     rm -f *.fir
