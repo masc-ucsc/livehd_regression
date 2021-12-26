@@ -57,7 +57,8 @@ do
 
     # Chisel full compilation (no ch.pb generation here)
     echo "---------- Chisel -> Verilog: $pt.scala ----------"
-    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
+    # sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
+    sbt -J-Xmx4G -J-Xms4G "runMain chisel3.stage.ChiselMain --module ${pt}.${pt}" > pp
     echo "      ${pt}"      >> ../../../stat.chisel3-full
     grep "Total time" pp    >> ../../../stat.chisel3-full
     mv $pt.fir ../../synthetic/generated
@@ -66,7 +67,8 @@ do
     # Chirrtl protobuf generation
     echo "---------- Chisel -> ch.pb: $pt.scala ----------"
     # JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
-    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
+    # sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
+    sbt -J-Xmx4G -J-Xms4G "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.ch.pb --module ${pt}.${pt}" > pp2
     echo "      ${pt}"      >> ../../../stat.chisel3-pb
     grep "Total time" pp2   >> ../../../stat.chisel3-pb
     mv $pt.ch.pb ../../synthetic/generated
@@ -76,7 +78,8 @@ do
     echo "---------- Chisel -> .fir: $pt.scala ----------"
     # JAVA_OPT="-Xmx64G -Xms32G -Xss16G -XX:MaxMetaspaceSize=16384M" sbt "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
     # sbt -J-Xmx64g -mem 16384 "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
-    sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    # sbt -J-Xmx64g  "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
+    sbt -J-Xmx4G -J-Xms4G "runMain chisel3.stage.ChiselMain --no-run-firrtl --chisel-output-file ${pt}.fir   --module ${pt}.${pt}" >pp3
     echo "      ${pt}"      >> ../../../stat.chisel3-fir
     grep "Total time" pp3   >> ../../../stat.chisel3-fir
     rm -f *.fir
