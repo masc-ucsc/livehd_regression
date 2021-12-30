@@ -11,6 +11,7 @@ else
   make -C firrtl build
   pushd .
   cd firrtl
+  sbt assembly
   sbt publishLocal
   popd
   #sbt compile

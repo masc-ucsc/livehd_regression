@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# generate firrtl and pb from scala files
 if [ ! -d generated ]; then
   mkdir -p generated
 fi

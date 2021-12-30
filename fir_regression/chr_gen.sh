@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# generate firrtl and pb from firrtl files
 if [ ! -d generated ]; then
   mkdir -p generated
 fi
@@ -21,9 +23,8 @@ fi
 
 for filename in ${inputs}
 do
-  pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
-  # compile only if foo.fir is not exists
-  echo $pt
+  # pt=$(basename "$filename" .scala) # ./foo/bar.scala -> bar
+  # echo $pt
 
   pt=$(basename "$filename" .fir) # ./foo/bar.scala -> bar
   echo "---------- Chirrtl Compilation: $pt.fir ----------"
