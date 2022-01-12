@@ -124,18 +124,21 @@ const char *vlog_wire_type[] = {
 	"io_a",		//module level input 00
 	"y",		//module level wire 01
 	"b",		//operation of literals 02
+	"rom",		//rom of literals 03
 };
 
 const char *chisl_wire_type[] = {
 	"io.a",		//module level input 00
 	"y",		//module level wire 01
 	"b",		//operation of literals 02
+	"rom",		//rom of literals 03
 };
 
 const char *prp_wire_type[] = {
 	"a",		//converted wire of module level input 00
 	"y",		//module level wire 01
-	"b",		//operation of literals 01
+	"b",		//operation of literals 02
+	"rom",		//rom of literals 03
 };
 
 // Psuedo-Random Number Generation --------------------------------------------
@@ -157,6 +160,24 @@ uint32_t xorshift32(uint32_t seed=0) {
 	return x;
 }
 
+// set_seed()
+// Simple call to set the seed for RNG
+void set_seed(uint32_t seed) { xorshift32(seed); }
+
+// one_out_of()
+// Returns true with a 1/N probability
+// Can also be set to roll conditionally, or to invert
+// probability to make it N-1/N
+bool one_out_of(uint32_t n, bool allow=true, bool inv=false) {
+	bool result = inv == xorshift32() % n;	// inv sets the chances of rolling true to be high
+	return result && allow;
+}
+
+// num_less_than()
+// Returns int less than N, if N==0 then it returns 0
+uint32_t num_less_than(uint32_t n) {
+	return n == 0 ? 0 : xorshift32() % n;
+}
 
 // Creation functions --------------------------------------------------------
 
@@ -168,9 +189,8 @@ void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 	bool invert = xorshift32()%(1+allow_invert);
 	// 2 main posiblities: concatonation or binary operation
 	// PYROPE-REMOVE
-	if(1/*xorshift32()%3*/){
-		binaryGen(v, c, p, inputs, bit_max, width, budget, _signed, invert, force_concat, no_mult, force_constants, allow_constants, limit, has_child);
-	}		
+	if(1/*xorshift32()%3*/)
+		binaryGen(v, c, p, inputs, bit_max, width, budget, _signed, invert, force_concat, no_mult, force_constants, allow_constants, limit, has_child);		
 	else{	
 		if(_signed){
 			fprintf(v, "$signed(" );
@@ -179,11 +199,7 @@ void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 			fprintf(v, "~");
 			fprintf(c, "~");
 		}
-		fprintf(v, "{");
-		fprintf(c, "Cat(");
 		concatGen(v, c, p, inputs, bit_max, width, budget, force_concat, no_mult, force_constants, allow_constants, limit, has_child);	//concat always returns uints so can be simple recasted
-		fprintf(v, "}");
-		fprintf(c, ")");
 		if(_signed){
 			fprintf(v, ")" );
 			fprintf(c, ".asSInt");
@@ -199,29 +215,35 @@ void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 // randomly chosen bit widths taken from inputs and other functions
 void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child){
 	budget--;
-	
-	if(budget==0){
-		// concatonation procdeures
+	fprintf(v, "{");
+	fprintf(c, "Cat(");
+
+	if(!budget)
 		randomInput(v, c, p, inputs, bit_max, width, 0, 1, force_constants, allow_constants, limit, has_child);
-	}
-	else{
-		while(width>0){		//each iteration subtracts more from the desired width
-			uint32_t sub_width = (xorshift32()%width)+1;	//number of bits to operate on 
-			//switch(1){
-			if(xorshift32()%3){
+	else {
+		while(width > 0) {
+			uint32_t range = width;
+			// precompute next subwidth - depending on width being larger than any input, protects binaryGen from a request that is too large to fufill
+			if(width > bit_max + 1)
+				range = bit_max + 1;
+			uint32_t sub_width = xorshift32() % range + 1;
+			if(xorshift32()%3) {
 				binaryGen(v, c, p, inputs, bit_max, sub_width, budget, 0, 1, force_concat, no_mult, force_constants, allow_constants, limit, has_child);
 			}
-			else{
+			else {
 				concatGen(v, c, p, inputs, bit_max, sub_width, sub_width==1 ? 1 : budget, force_concat, no_mult, force_constants, allow_constants, limit, has_child);		//cant split anymore once sub_width is 1
 			}
-		if((width-sub_width)>0){
-			fprintf(v, ",");
-			fprintf(c, ",");
-		}
-		width-=sub_width;
+
+			if(width > sub_width) {
+				fprintf(v, ",");
+				fprintf(c, ",");
+			}
+		width -= sub_width;
 		}
 	}
-	
+
+	fprintf(v, "}");
+	fprintf(c, ")");
 }
 
 
@@ -423,9 +445,8 @@ void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 		}
 
 		pos1 = width_selected-width==0 ? 0 : xorshift32()%(width_selected-width);	//prevents % by 0 error, finds small value
-		if(bit_min==0){
+		if(!bit_min)
 			pos2 =pos1;
-		}
 		else{
 			pos2 = width_selected-pos1-1==0 ? pos1+1 : (xorshift32()%(width_selected-pos1-1))+pos1+1;	//prevents % by 0 error, finds random 2nd larger position
 		}
@@ -443,9 +464,8 @@ void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 			}
 		}
 		else if(use_wire){	//if a literal wasnt used, and rolls to use a previous "y" wire
-			if(inputchosen < limit){
+			if(inputchosen < limit)
 				wire_type = 1;	//switches to previous wire
-			}
 		}
 
 
