@@ -19,9 +19,12 @@
 #include "HDLGen.h"
 #include "FunctionGen.h"
 
-
 #define INPUT_LIMIT 20
 #define INPUT_MIN INPUT_LIMIT/2
+
+#define SRAM_SIZE 16
+#define SRAM_DATA_SIZE 16
+#define SRAM_ADDR_SIZE 4
 
 using namespace std;
 
@@ -31,7 +34,7 @@ using namespace std;
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants){
+void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory){
 	xorshift32(seed);	//random start to generation
 	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
@@ -41,24 +44,23 @@ void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int lev
 	int i;
 	int current_bit_max = bit_max;
 	int current_inputs = inputs;
+	
 	for(levels--;levels>=0;levels--){	
 
 		for(i=levels;i>0;i--){	//adjusts proper bit max and inputs levels
 			current_bit_max=(current_bit_max/split);
 			current_inputs = (current_inputs/split);
 		}	
-		if(current_inputs<1){	//modules alwayss have inputs
+		if(current_inputs<1)	//modules alwayss have inputs
 			current_inputs=1;
-		}
 
 		// Prints beginnings of each file
 		sub_output_width = declareModule(v, c, p, current_inputs, current_bit_max, levels, split, has_child);
 		// Prints wires
 		declareWires(v, c, p, current_inputs, current_bit_max, sub_output_width, has_child, allow_constants);
 		// Prints submodule instantiations
-		if(has_child){
+		if(has_child)
 			createSubmodules(v, c, p, current_inputs, current_bit_max, split, levels, allow_constants);
-		}
 		// Prints assigns and concatenated output
 		declareOutput(v, c, p, current_inputs, current_bit_max, sub_output_width, budget-levels, has_child, allow_constants);
 		// Resets values for next loop
@@ -66,6 +68,8 @@ void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int lev
 		current_bit_max = bit_max;
 		has_child=1;	//sets flag after first level generated
 	}
+	if(memory){}	//creates separate output driven by small SRAM module
+
 }
 
 // declareModule(), helper to init_IO()
@@ -169,6 +173,36 @@ void declareWires(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_ou
 		fprintf(p, "a%d = $io_a%d\n",i,i);
 		fprintf(p, "y%d.__%cbits = %d\n",i,current_width%2?'s':'u',current_width);
 	}
+}
+
+
+// createROM(), helper to declareWires()
+// Creates a Chisel based ROM from its VecInit function, with UInt elements
+// ROM defaults any unknown addr values to the 0 element in the vector
+void createROM(FILE *v, FILE *c, FILE *p, int inputs, int bit_max) {
+	uint32_t rom_addr_size = inputs;
+	rom_addr_size |= rom_addr_size >> 1;   // Divide by 2^k for consecutive doublings of k up to 32,
+	rom_addr_size |= rom_addr_size >> 2;   // and then or the results.
+	rom_addr_size |= rom_addr_size >> 4;
+	rom_addr_size |= rom_addr_size >> 8;
+	rom_addr_size |= rom_addr_size >> 16;
+	rom_addr_size -= rom_addr_size >> 1;
+	fprintf(v, "\nwire rom_addr [%d:0] = ", rom_addr_size);
+	fprintf(c, "\nval rom_addr = Wire(UInt(%d.W))", rom_addr_size+1);
+	functionGen(v, c, p, inputs, bit_max, rom_addr_size+1, 3, 0, 0, 1, 0, 0, 1, 0, 0);
+	// Due to verilog ROM and chisel ROM specifying first two elements in different orders we must precompute
+	int elm1 = xorshift32(inputs)%bit_max;
+	int elm2 = xorshift32(inputs)%bit_max;
+	fprintf(v, ";\n");
+	fprintf(c, "\nval rom = VecInit(%d.U, %d.U", elm1, elm2);
+	fprintf(v, "wire [%d:0] _ROM_1 = %d'h1 == rom_addr ? %d'h%d : %d'h%d;\n", bit_max, rom_addr_size, bit_max+1, elm2, bit_max+1, elm1);
+	for(int i=2; i<=bit_max; i++) {
+		fprintf(v, "wire [%d:0] _ROM_%d = %d'h%d == rom_addr ? ", bit_max, i, rom_addr_size, i);
+		fprintf(c, ", ");
+		randomConstant(v, c, bit_max+1, 0);
+		fprintf(v, ": _ROM_%d;\n", i-1);
+	}
+	fprintf(c, ")\n");
 }
 
 // declareSubmodules()
