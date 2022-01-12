@@ -157,6 +157,7 @@ uint32_t xorshift32(uint32_t seed=0) {
 	x ^= x << 13;
 	x ^= x >> 17;
 	x ^= x << 5;
+	cout << x << endl;
 	return x;
 }
 
@@ -169,7 +170,7 @@ void set_seed(uint32_t seed) { xorshift32(seed); }
 // Can also be set to roll conditionally, or to invert
 // probability to make it N-1/N
 bool one_out_of(uint32_t n, bool allow=true, bool inv=false) {
-	bool result = inv == xorshift32() % n;	// inv sets the chances of rolling true to be high
+	bool result = inv == (xorshift32() % n);	// inv sets the chances of rolling true to be high
 	return result && allow;
 }
 
@@ -186,7 +187,7 @@ uint32_t num_less_than(uint32_t n) {
 // Length of functions decided by budget which determines how many recursive
 // iterations are allowed to occur within each function
 void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child){
-	bool invert = xorshift32()%(1+allow_invert);
+	bool invert = one_out_of(2, allow_invert);//xorshift32()%(1+allow_invert);
 	// 2 main posiblities: concatonation or binary operation
 	// PYROPE-REMOVE
 	if(1/*xorshift32()%3*/)
@@ -226,8 +227,8 @@ void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, in
 			// precompute next subwidth - depending on width being larger than any input, protects binaryGen from a request that is too large to fufill
 			if(width > bit_max + 1)
 				range = bit_max + 1;
-			uint32_t sub_width = xorshift32() % range + 1;
-			if(xorshift32()%3) {
+			uint32_t sub_width = num_less_than(range) + 1;//xorshift32() % range + 1;
+			if(one_out_of(3, true, true)/*xorshift32()%3*/) {
 				binaryGen(v, c, p, inputs, bit_max, sub_width, budget, 0, 1, force_concat, no_mult, force_constants, allow_constants, limit, has_child);
 			}
 			else {
@@ -253,7 +254,7 @@ void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, in
 void binaryGen(FILE *v, FILE *c, FILE *p, int inputs,  int bit_max, int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child){
 	// PYROPE-REMOVE
 	//uint32_t op = xorshift32()%11;//roll for operator, doesn't do signed right shifts for single bits
-	uint32_t op = xorshift32()%6;	//anything past * isnt guaranteed to work
+	uint32_t op = num_less_than(6);//xorshift32()%6;	//anything past * isnt guaranteed to work
 	if(op>2){	//prevents mixing mult with other arithmetic ops
 		no_mult =1;
 	}
@@ -349,7 +350,7 @@ void binaryGen(FILE *v, FILE *c, FILE *p, int inputs,  int bit_max, int width, i
 
 
 			//rolls whether or not to expand binary operation heirarchy
-			if(xorshift32()%(1 + (op>7 || op<3))){	//expands, prevents nested arithmetic operations, those become too confusing for yosys compiler
+			if(one_out_of(2, op > 7 || op < 3)/*xorshift32()%(1 + (op>7 || op<3))*/) {	//expands, prevents nested arithmetic operations, those become too confusing for yosys compiler
 				functionGen(v, c, p, inputs, bit_max, width_1, budget, shift_sign, 0, allow_invert, no_mult, force_constants, allow_constants, limit, has_child);
 			}
 			else{
@@ -363,7 +364,7 @@ void binaryGen(FILE *v, FILE *c, FILE *p, int inputs,  int bit_max, int width, i
 			fprintf(p, " %s ",prp_binary_ops[op]);
 
 			//roll for second operand
-			if(xorshift32()%(1 + (op>7 || op<3))){	//expands
+			if(one_out_of(2, op > 7 || op < 3)/*xorshift32()%(1 + (op>7 || op<3))*/) {	//expands
 				functionGen(v, c, p, inputs, bit_max, width_2, budget, op>7?0:_signed, 0, allow_invert, no_mult, force_constants, allow_constants, limit, has_child); 	//prevents shifting by a negative number, forces uint to be used
 			}
 			else{
@@ -426,29 +427,29 @@ void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 	uint32_t operationchosen;
 	int width_selected,width_selected_2;
 	int pos1,pos2,pos3,pos4;
-	bool invert = xorshift32()%(1+allow_invert);
+	bool invert = one_out_of(2, allow_invert);//xorshift32()%(1+allow_invert);
 	bool force_signed =0;	//Used for signed right shifts, to force otherwise unsigned parts/inputs to be signed
-	bool use_constant = allow_constants?!(xorshift32()%CHANCE_OF_CONSTANT):0;	//determines if a constant or an input will be returned
-	bool use_wire = use_constant?0:!(xorshift32()%CHANCE_OF_WIRE);	//if a constant isn't used, also rolls to reuse a previous wire
+	bool use_constant = one_out_of(CHANCE_OF_CONSTANT, allow_constants, true);//allow_constants?!(xorshift32()%CHANCE_OF_CONSTANT):0;	//determines if a constant or an input will be returned
+	bool use_wire = one_out_of(CHANCE_OF_WIRE, !use_constant, true);//use_constant?0:!(xorshift32()%CHANCE_OF_WIRE);	//if a constant isn't used, also rolls to reuse a previous wire
 	int wire_type = 0;	//default is typical top level input
-	if(force_constants || (xorshift32()%(1+use_constant))){	
+	if(force_constants || one_out_of(2, use_constant)/*(xorshift32()%(1+use_constant))*/){	
 		randomConstant(v,c,width,_signed);	//prints a random constant generated given width/signness
 	}
 	else {
 		if(width > (bit_min+1)) {	//needs specific input
 			input_range = inputs>(bit_max-bit_min) ? bit_max+2-width : bit_min+1+inputs-width;		//when there are less inputs than possible bit width combinations
-			width_selected = width + (input_range==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
+			width_selected = width + num_less_than(input_range);//(input_range==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
 		}
 		else{	//otherwise selects random input
 			input_range = inputs>(bit_max-bit_min) ? bit_min+1 : inputs;
-			width_selected = bit_min+1+(xorshift32()%(input_range));	
+			width_selected = bit_min+1+num_less_than(input_range);//(xorshift32()%(input_range));	
 		}
 
-		pos1 = width_selected-width==0 ? 0 : xorshift32()%(width_selected-width);	//prevents % by 0 error, finds small value
+		pos1 = num_less_than(width_selected - width);//width_selected-width==0 ? 0 : xorshift32()%(width_selected-width);	//prevents % by 0 error, finds small value
 		if(!bit_min)
 			pos2 =pos1;
 		else{
-			pos2 = width_selected-pos1-1==0 ? pos1+1 : (xorshift32()%(width_selected-pos1-1))+pos1+1;	//prevents % by 0 error, finds random 2nd larger position
+			pos2 = num_less_than(width_selected - pos1 - 1) + pos1 + 1;//width_selected-pos1-1==0 ? pos1+1 : (xorshift32()%(width_selected-pos1-1))+pos1+1;	//prevents % by 0 error, finds random 2nd larger position
 		}
 		if(((width==1) || !(width%2) || (width<=bit_min)) && _signed){	//right shifts may sometimes request values that aren't naturally signed to be signed, need recast if this is the case
 			fprintf(v, "$signed");	//chisel automatically assigns single bits as bools
@@ -476,7 +477,7 @@ void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 				fprintf(p, "~");
 			}
 			// Outputs randomized single bit values
-			switch(xorshift32()%3){
+			switch(num_less_than(3)/*xorshift32()%3*/){
 				case 0 :	//simple selected bit print
 					//inputchosen = inputWidthRequest(inputs,bit_max,width_selected,limit);
 					fprintf(v, "%s%d[%d]",vlog_wire_type[wire_type],inputchosen,pos1);
@@ -498,7 +499,7 @@ void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, 
 					fprintf(p,"(%s(%s%d@(%d:%d)))",prp_unary_ops[operationchosen],prp_wire_type[wire_type],inputchosen,pos1,pos2);
 					break;
 				case 2 :	//logical operation
-					operationchosen = xorshift32()%8;
+					operationchosen = num_less_than(8);//xorshift32()%8;
 					if(operationchosen == 1 || operationchosen == 3)
 						operationchosen--;
 					// PYROPE-EDIT: >= and <= dont work in pyrope, disable line above
@@ -619,7 +620,7 @@ int inputWidthRequest(int inputs, int bit_max, int width) {
 	int first_occurence = width-1-bit_min;	//name of first occurence of input with width
 	int range = bit_max-bit_min+1;			//range of possible bit widths
 	int instances = (inputs-1)/(first_occurence+range);	//how many inputs of a bit width exist past the first
-	int result = first_occurence + range*(xorshift32()%(instances+1));	//limit makes sure this does not pass a wire number greater than the limit
+	int result = first_occurence + range * num_less_than(instances + 1);//(xorshift32()%(instances+1));	//limit makes sure this does not pass a wire number greater than the limit
 	return result;
 }
 
@@ -639,8 +640,8 @@ bool matchInputWidth(int inputs, int bit_max, int width, int wire_number) {
 // randomConstant()
 // Helper to any any function than needs a random constant printed given width and signness
 void randomConstant(FILE *v, FILE *c, int width, bool _signed) {
-	bool neg = xorshift32()%(1+_signed);	//rolls whether negative or not
-	int value = xorshift32()%((1 << width)/(1+_signed));	//2's complement range stunted by 1/2
+	bool neg = one_out_of(2, _signed);//xorshift32()%(1+_signed);	//rolls whether negative or not
+	int value = num_less_than((1 << width)/(1+_signed));//xorshift32()%((1 << width)/(1+_signed));	//2's complement range stunted by 1/2
 	fprintf(v, "(%c%d'%s%d)",neg?'-':' ',width,_signed?"sd":"d",value);
 	fprintf(c, "(%c%d.%c(%d.W))",neg?'-':' ',value,_signed?'S':'U',width);
 }
@@ -658,13 +659,13 @@ void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int wi
 	char z = force_constants?'b':'y';	//determines whether inputs or constants are being assigned
 	fprintf(v, "\n	assign %c%d = ",z,wire_number);	//verilog output will always look the same
 	bool Mux;
-	if(xorshift32()%2){		//No Conditionals
+	if(one_out_of(2)/*xorshift32()%2*/){		//No Conditionals
 		fprintf(c, "\n	%c%d := ",z,wire_number);
 		fprintf(p, "\n%c%d = ",z,wire_number);
 		functionGen(v, c, p, inputs, bit_max, width, budget, width%2, 0, 1, 0, force_constants, allow_constants, wire_number, has_child);
 	}
 	else{					//Conditionals used
-		Mux = xorshift32()%2;	//Chisel Mux() option
+		Mux = one_out_of(2);//xorshift32()%2;	//Chisel Mux() option
 		budget--;
 
 
@@ -677,7 +678,7 @@ void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int wi
 		fprintf(p, "\nif (");
 
 		//rolls for condition, should stick to boolean (single bit)
-		if(xorshift32()%((budget!=0)+1)){
+		if(one_out_of(2, budget)/*xorshift32()%((budget!=0)+1)*/) {
 			functionGen(v,c,p,inputs,bit_max,1,budget,0,0, 1,0,force_constants,allow_constants,wire_number,has_child);
 		}
 		else{
@@ -697,7 +698,7 @@ void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int wi
 		fprintf(p, "%c%d = ",z,wire_number);
 
 		//rolls for first =true output
-		if(xorshift32()%((budget!=0)+1)){
+		if(one_out_of(2, budget)/*xorshift32()%((budget!=0)+1)*/) {
 			functionGen(v,c,p,inputs,bit_max,width,budget,_signed,0, 1,0,force_constants,allow_constants,wire_number,has_child);
 		}
 		else{
@@ -716,7 +717,7 @@ void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int wi
 		fprintf(p, "%c%d = ",z,wire_number);
 
 		// rolls for second =false output
-		if(xorshift32()%((budget!=0)+1)){
+		if(one_out_of(2, budget)/*xorshift32()%((budget!=0)+1)*/) {
 			functionGen(v,c,p,inputs,bit_max,width,budget,_signed,!_signed, 1,0,force_constants,allow_constants,wire_number,has_child);	//forces concatenation for signed right shift to preserve signness
 		}
 		else{

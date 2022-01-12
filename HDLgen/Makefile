@@ -17,4 +17,4 @@ HDLGen.o : HDLGen.h HDLGen.cpp FunctionGen.h
 FunctionGen.o : FunctionGen.h FunctionGen.cpp
 	$(CC) $(CFLAGS) -c FunctionGen.cpp
 clean :
-	rm -f Generate Generate.o HDLGen.o FunctionGen.o
+	rm -f Generate Generate.o HDLGen.o FunctionGen.o FunctionGen.h.gch random*

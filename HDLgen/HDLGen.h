@@ -18,7 +18,7 @@
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants);
+void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory);
 
 // declareModule(), helper to init_IO()
 // Prints verilog standard module declaration to files

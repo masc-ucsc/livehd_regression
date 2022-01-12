@@ -35,7 +35,7 @@ using namespace std;
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
 void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory){
-	xorshift32(seed);	//random start to generation
+	set_seed(seed);	//random start to generation
 	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
 	fprintf(c,"import chisel3.util._\n");	//necessary import for utils like Cat() and Mux()
@@ -191,8 +191,8 @@ void createROM(FILE *v, FILE *c, FILE *p, int inputs, int bit_max) {
 	fprintf(c, "\nval rom_addr = Wire(UInt(%d.W))", rom_addr_size+1);
 	functionGen(v, c, p, inputs, bit_max, rom_addr_size+1, 3, 0, 0, 1, 0, 0, 1, 0, 0);
 	// Due to verilog ROM and chisel ROM specifying first two elements in different orders we must precompute
-	int elm1 = xorshift32(inputs)%bit_max;
-	int elm2 = xorshift32(inputs)%bit_max;
+	int elm1 = num_less_than(bit_max);
+	int elm2 = num_less_than(bit_max);
 	fprintf(v, ";\n");
 	fprintf(c, "\nval rom = VecInit(%d.U, %d.U", elm1, elm2);
 	fprintf(v, "wire [%d:0] _ROM_1 = %d'h1 == rom_addr ? %d'h%d : %d'h%d;\n", bit_max, rom_addr_size, bit_max+1, elm2, bit_max+1, elm1);

@@ -18,6 +18,7 @@ HDLGen is written for use with LiveHD and for affiliates of MASC (Micro Architec
 [Optional arguments]:\n \
 --help: Print this message\n \
 --allow_constants: Includes the use of constants in generated files\n \
+--memory: Includes a second output sourced from a small SRAM module on the top level\n \
 --split: Divisor of size and number of inputs/outputs of a submodule relative to its parent (default=2)\n \
 --seed: Seed for the RNG aspect of the generation (default=123457)\n \
 [Required arguments]:\n \
@@ -29,54 +30,6 @@ HDLGen is written for use with LiveHD and for affiliates of MASC (Micro Architec
 ./Generate --inputs=3 --budget=4 --bit_max=5 --levels=3 --split=4 --allow_constants\n";
 
 int main(int argc, char *argv[]){
-		// Seed for RNG
-	//uint32_t seed = 123457;
-	/*
-
-	// How many files you want to create
-	int files = 10;
-
-	// Creates directory for each languages output files
-	mkdir("randomverilog",0777);
-	mkdir("randomchisel",0777);
-	mkdir("randompyrope",0777);
-
-	// Creates many files
-	char filename_v[1024];
-	char filename_c[1024];
-	char filename_p[1024];
-	for(int i=0;i<files;i++){
-		snprintf(filename_v, 1024, "randomverilog/randomverilog%04d.v",i);
-		snprintf(filename_c, 1024, "randomchisel/randomchisel%04d.scala",i);
-		snprintf(filename_p, 1024, "randompyrope/randompyrope%04d.prp",i);
-		FILE *v = fopen(filename_v,"w");
-		FILE *c = fopen(filename_c,"w");
-		FILE *p = fopen(filename_p,"w");
-		createHierarchy(v,c,15,7,1,2,7,seed+i);
-	}
-	*/
-	
-	// Opens file
-	char filename_v[1024];
-	char filename_c[1024];
-	char filename_p[1024];
-	snprintf(filename_v, 1024, "randomverilog.v");
-	snprintf(filename_c, 1024, "randomchisel.scala");
-	snprintf(filename_p, 1024, "randompyrope.prp");
-	FILE *verilog = fopen(filename_v, "w");
-	FILE *chisel = fopen(filename_c, "w");
-	FILE *pyrope = fopen(filename_p, "w");
-	
-	// Hierarchy tests
-	/*int inputs = 5;
-	int bit_max = 5;
-	int levels = 1;
-	int split = 2;
-	int budget = 3;
-	bool allow_constants = 0;*/
-
-	
-	
 	// BEGINNING OF REAL CODE, USING SIMPLER VERSION ABOVE JUST TO RECOMPILE FASTER
 	
 	int inputs = 0;
@@ -88,6 +41,7 @@ int main(int argc, char *argv[]){
 	uint32_t seed = 123457;
 	int split = 2;
 	bool allow_constants = 0;
+	bool memory = 0;
 
 	int c = 0;
 
@@ -103,6 +57,7 @@ int main(int argc, char *argv[]){
 		    {"seed", required_argument, NULL, 's'},
 		    {"split", required_argument, NULL, 'S'},
 		    {"allow_constants", no_argument, NULL, 'c'},
+		    {"memory", no_argument, NULL, 'M'},
 		    {"help", no_argument, NULL, 'h'},
 		    {NULL, 0, NULL, 0}
 		};
@@ -145,16 +100,19 @@ int main(int argc, char *argv[]){
 	       		levels = (int)strtol(optarg, NULL, 10);
 	       		cout << "levels: " << levels << endl;
 	       		break;
-	       	case('s') :
+	       	case('s') :	//seed
 	       		seed = (uint32_t)strtol(optarg, NULL, 10);
 	       		break;
-	       	case('S') :
+	       	case('S') :	//split
 	       		split = (int)strtol(optarg, NULL, 10);
 	       		break;
 	       	case('c') :
 	       		allow_constants = true;
 	       		break;
-	        case('h') :
+	       	case('M') :
+	       		memory = true;
+	       		break;
+	        case('h') :	//help
 	        	cout << usageReport << endl;
 	        	break;
 	        case '?' :
@@ -187,7 +145,44 @@ int main(int argc, char *argv[]){
     	exit(EXIT_FAILURE);
     }
 
+    /*
+
+	// How many files you want to create
+	int files = 10;
+
+	// Creates directory for each languages output files
+	mkdir("randomverilog",0777);
+	mkdir("randomchisel",0777);
+	mkdir("randompyrope",0777);
+
+	// Creates many files
+	char filename_v[1024];
+	char filename_c[1024];
+	char filename_p[1024];
+	for(int i=0;i<files;i++){
+		snprintf(filename_v, 1024, "randomverilog/randomverilog%04d.v",i);
+		snprintf(filename_c, 1024, "randomchisel/randomchisel%04d.scala",i);
+		snprintf(filename_p, 1024, "randompyrope/randompyrope%04d.prp",i);
+		FILE *v = fopen(filename_v,"w");
+		FILE *c = fopen(filename_c,"w");
+		FILE *p = fopen(filename_p,"w");
+		createHierarchy(v,c,15,7,1,2,7,seed+i);
+	}
+	*/
+	
+	// Opens file
+	char filename_v[1024];
+	char filename_c[1024];
+	char filename_p[1024];
+	snprintf(filename_v, 1024, "randomverilog.v");
+	snprintf(filename_c, 1024, "randomchisel.scala");
+	snprintf(filename_p, 1024, "randompyrope.prp");
+	FILE *verilog = fopen(filename_v, "w");
+	FILE *chisel = fopen(filename_c, "w");
+	FILE *pyrope = fopen(filename_p, "w");
+	
+
     // success - creates files
-    createHierarchy(verilog,chisel,pyrope,inputs,bit_max,levels,split,budget,seed,allow_constants);
+    createHierarchy(verilog, chisel, pyrope, inputs, bit_max, levels, split, budget, seed, allow_constants, memory);
     exit(EXIT_SUCCESS);
 }

@@ -17,7 +17,21 @@
 // Taken from vlogHammer which took it from wikipedia article on
 // xorshift rng, extermely efficient implementation of pseudo-rng,
 // avoids use of rand()
-uint32_t xorshift32(uint32_t seed);
+// uint32_t xorshift32(uint32_t seed);
+
+// set_seed()
+// Simple call to set the seed for RNG
+void set_seed(uint32_t seed);
+
+// one_out_of()
+// Returns true with a 1/N probability
+// Can also be set to roll conditionally, or to invert
+// probability to make it N-1/N
+bool one_out_of(uint32_t n, bool allow, bool inv);
+
+// num_less_than()
+// Returns int less than N, if N==0 then it returns 0
+uint32_t num_less_than(uint32_t n);
 
 // Creation functions --------------------------------------------------------
 
