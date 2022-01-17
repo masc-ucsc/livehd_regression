@@ -19,6 +19,7 @@ HDLGen is written for use with LiveHD and for affiliates of MASC (Micro Architec
 --help: Print this message\n \
 --allow_constants: Includes the use of constants in generated files\n \
 --memory: Includes a second output sourced from a small SRAM module on the top level\n \
+--entropy: Produces intentionally incorrect code by adding in combinational loops\n \
 --split: Divisor of size and number of inputs/outputs of a submodule relative to its parent (default=2)\n \
 --seed: Seed for the RNG aspect of the generation (default=123457)\n \
 [Required arguments]:\n \
@@ -42,6 +43,7 @@ int main(int argc, char *argv[]){
 	int split = 2;
 	bool allow_constants = 0;
 	bool memory = 0;
+	bool entropy = 0;
 
 	int c = 0;
 
@@ -58,6 +60,7 @@ int main(int argc, char *argv[]){
 		    {"split", required_argument, NULL, 'S'},
 		    {"allow_constants", no_argument, NULL, 'c'},
 		    {"memory", no_argument, NULL, 'M'},
+		    {"entropy", no_argument, NULL, 'e'},
 		    {"help", no_argument, NULL, 'h'},
 		    {NULL, 0, NULL, 0}
 		};
@@ -111,6 +114,9 @@ int main(int argc, char *argv[]){
 	       		break;
 	       	case('M') :
 	       		memory = true;
+	       		break;
+	       	case('e') :
+	       		entropy = true;
 	       		break;
 	        case('h') :	//help
 	        	cout << usageReport << endl;
@@ -183,6 +189,6 @@ int main(int argc, char *argv[]){
 	
 
     // success - creates files
-    createHierarchy(verilog, chisel, pyrope, inputs, bit_max, levels, split, budget, seed, allow_constants, memory);
+    createHierarchy(verilog, chisel, pyrope, inputs, bit_max, levels, split, budget, seed, allow_constants, memory, entropy);
     exit(EXIT_SUCCESS);
 }

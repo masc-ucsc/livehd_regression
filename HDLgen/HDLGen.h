@@ -18,7 +18,7 @@
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory);
+void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory, bool entropy);
 
 // declareModule(), helper to init_IO()
 // Prints verilog standard module declaration to files
@@ -26,7 +26,6 @@ void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int lev
 // If 0 inputs is passed in, a random amound of inputs is created
 // Returns sub modules output width, or 0 if there is no child
 int declareModule(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, bool has_child);
-
 
 // verilog_chiselIO()
 // Prints to file inputs and outputs of currently declaring module
@@ -39,8 +38,8 @@ void declareWires(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_ou
 
 // declareSubmodules()
 // Handles declaration of each submodule, given the previously generates x wires for their output
-void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants);
+void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants, bool entropy);
 
 // declareOutput()
 // Does assign statements for each top level wire and connects all wires to concatenated output
-void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants);
+void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants, bool entropy);

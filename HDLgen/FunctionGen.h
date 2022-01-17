@@ -13,12 +13,6 @@
 
 // Psuedo-Random Number Generation --------------------------------------------
 
-// xorshift32()
-// Taken from vlogHammer which took it from wikipedia article on
-// xorshift rng, extermely efficient implementation of pseudo-rng,
-// avoids use of rand()
-// uint32_t xorshift32(uint32_t seed);
-
 // set_seed()
 // Simple call to set the seed for RNG
 void set_seed(uint32_t seed);
@@ -39,18 +33,17 @@ uint32_t num_less_than(uint32_t n);
 // Uses recursive helper functions to create randomized functions
 // Length of functions decided by budget which determines how many recursive
 // iterations are allowed to occur within each function
-void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
+void functionGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child, bool entropy);
 
 // concatGen()
 // Recursively fufills a bit width requirement through concatenating 
 // randomly chosen bit widths taken from inputs and other functions
-void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
+void concatGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child, bool entropy);
 
 // binaryGen()
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
-void binaryGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child);
-
+void binaryGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, bool allow_constants, int limit, bool has_child, bool entropy);
 
 // Helper functions ----------------------------------------------------------
 
@@ -59,7 +52,7 @@ void binaryGen(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, in
 // the width requested, depends on inputWidthRequest()
 // Also acts as a single bit random generator, using logical
 // and unary operators to produce values
-void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, bool _signed, bool allow_invert, bool force_constants, bool allow_constants, int limit, bool has_child);
+void randomInput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, bool _signed, bool allow_invert, bool force_constants, bool allow_constants, int limit, bool has_child, bool entropy);
 
 // inputWidthRequest(), helper function to randomInput()
 // Returns a random input variable based on
@@ -81,4 +74,4 @@ int getInputWidth(int bit_max, int wire_number);
 
 // printAssignments()
 // Takes care of possible conditionals and generic wire assignments
-void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, int wire_number, bool _signed, bool force_constants, bool allow_constants, bool has_child);
+void printAssignments(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int width, int budget, int wire_number, bool _signed, bool force_constants, bool allow_constants, bool has_child, bool entropy);

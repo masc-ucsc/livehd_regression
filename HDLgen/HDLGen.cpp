@@ -34,7 +34,7 @@ using namespace std;
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory){
+void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory, bool entropy){
 	set_seed(seed);	//random start to generation
 	fprintf(c, "package randomchisel\n");
 	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
@@ -60,9 +60,9 @@ void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int lev
 		declareWires(v, c, p, current_inputs, current_bit_max, sub_output_width, has_child, allow_constants);
 		// Prints submodule instantiations
 		if(has_child)
-			createSubmodules(v, c, p, current_inputs, current_bit_max, split, levels, allow_constants);
+			createSubmodules(v, c, p, current_inputs, current_bit_max, split, levels, allow_constants, entropy);
 		// Prints assigns and concatenated output
-		declareOutput(v, c, p, current_inputs, current_bit_max, sub_output_width, budget-levels, has_child, allow_constants);
+		declareOutput(v, c, p, current_inputs, current_bit_max, sub_output_width, budget-levels, has_child, allow_constants, entropy);
 		// Resets values for next loop
 		current_inputs = inputs;
 		current_bit_max = bit_max;
@@ -189,7 +189,7 @@ void createROM(FILE *v, FILE *c, FILE *p, int inputs, int bit_max) {
 	rom_addr_size -= rom_addr_size >> 1;
 	fprintf(v, "\nwire rom_addr [%d:0] = ", rom_addr_size);
 	fprintf(c, "\nval rom_addr = Wire(UInt(%d.W))", rom_addr_size+1);
-	functionGen(v, c, p, inputs, bit_max, rom_addr_size+1, 3, 0, 0, 1, 0, 0, 1, 0, 0);
+	functionGen(v, c, p, inputs, bit_max, rom_addr_size+1, 3, 0, 0, 1, 0, 0, 1, 0, 0, 0);
 	// Due to verilog ROM and chisel ROM specifying first two elements in different orders we must precompute
 	int elm1 = num_less_than(bit_max);
 	int elm2 = num_less_than(bit_max);
@@ -207,7 +207,7 @@ void createROM(FILE *v, FILE *c, FILE *p, int inputs, int bit_max) {
 
 // declareSubmodules()
 // Handles declaration of each submodule, given the previously generates x wires for their output
-void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants){
+void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants, bool entropy){
 	int i,j,current_width;
 	int sub_inputs = inputs/split;
 	if(sub_inputs<1){
@@ -234,7 +234,7 @@ void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sp
 			/*if(current_width%2){
 				fprintf(v, "$signed" );
 			}*/
-			randomInput(v, c, p, inputs, bit_max, current_width, current_width%2, 1, 0, allow_constants, j, 1);	//needs to know if signed inputs align or not
+			randomInput(v, c, p, inputs, bit_max, current_width, current_width%2, 1, 0, allow_constants, j, 1, entropy);	//needs to know if signed inputs align or not
 			/*if(current_width%2){
 				fprintf(c, ".asSInt" );
 			}*/
@@ -249,7 +249,7 @@ void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sp
 
 // declareOutput()
 // Does assign statements for each top level wire and connects all wires to concatenated output
-void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants){
+void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants, bool entropy){
 	fprintf(v, "\n" );
 	fprintf(c, "\n" );
 	int i, current_width;
@@ -258,14 +258,14 @@ void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_o
 		if(allow_constants){
 			for(i=0;i<(inputs/2);i++){	//assigns top level complex constant declarations
 				current_width = getInputWidth(bit_max, i);
-				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child);
+				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child,0);
 			}
 		}
 		fprintf(v, "\n");
 		fprintf(c, "\n");
 		for(i=0;i<(inputs/2);i++){	//assigns top level wires
 			current_width = getInputWidth(bit_max, i);
-			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child);
+			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child,entropy);
 
 		}
 		fprintf(v, "\n	assign io_y = {");
@@ -282,14 +282,14 @@ void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_o
 		if(allow_constants){
 			for(i=0;i<inputs;i++){	//assigns top level complex constant declarations
 				current_width = getInputWidth(bit_max, i);
-				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child);
+				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child,0);
 			}
 		}
 		fprintf(v, "\n");
 		fprintf(c, "\n");
 		for(i=0;i<inputs;i++){	//assigns top level wires
 			current_width = getInputWidth(bit_max, i);
-			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child);
+			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child,entropy);
 			prp_shift_counter += current_width;
 		}
 		fprintf(v, "\n	assign io_y = {");
