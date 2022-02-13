@@ -30,20 +30,13 @@ HDLGen is written for use with LiveHD and for affiliates of MASC (Micro Architec
 [Example Usage]:\n \
 ./Generate --inputs=3 --budget=4 --bit_max=5 --levels=3 --split=4 --allow_constants\n";
 
-int main(int argc, char *argv[]){
-	// BEGINNING OF REAL CODE, USING SIMPLER VERSION ABOVE JUST TO RECOMPILE FASTER
-	
-	int inputs = 0;
-	int budget = 0;
-	int bit_max = 0;
-	int levels = 0;
+int main(int argc, char *argv[]){	
+	int inputs = 0, budget = 0, bit_max = 0, levels = 0;
 
 	// Default values
 	uint32_t seed = 123457;
 	int split = 2;
-	bool allow_constants = 0;
-	bool memory = 0;
-	bool entropy = 0;
+	bool allow_constants = false, memory = false, entropy = false;
 
 	int c = 0;
 
@@ -72,7 +65,7 @@ int main(int argc, char *argv[]){
 
 		switch (c) {
 	       	case('i') :
-	       		if(inputs) {
+	       		if (inputs) {
 	       			cout << "Error: passed in arguments for inputs more than once, program end" << endl;
 	       			exit(EXIT_FAILURE);
 	       		}
@@ -80,7 +73,7 @@ int main(int argc, char *argv[]){
 	       		cout << "inputs: " << inputs << endl;
 	       		break;
 	       	case('b') :
-	       		if(budget) {
+	       		if (budget) {
 	       			cout << "Error: passed in arguments for budget more than once, program end" << endl;
 	       			exit(EXIT_FAILURE);
 	       		}
@@ -88,7 +81,7 @@ int main(int argc, char *argv[]){
 	       		cout << "budget: " << budget << endl;
 	       		break;
 	       	case('m') :
-	       		if(bit_max) {
+	       		if (bit_max) {
 	       			cout << "Error: passed in arguments for bit_max more than once, program end" << endl;
 	       			exit(EXIT_FAILURE);
 	       		}
@@ -96,7 +89,7 @@ int main(int argc, char *argv[]){
 	       		cout << "bit_max: " << bit_max << endl;
 	       		break;
 	       	case('l') :
-	       		if(levels) {
+	       		if (levels) {
 	       			cout << "Error: passed in arguments for levels more than once, program end" << endl;
 	       			exit(EXIT_FAILURE);
 	       		}
@@ -129,66 +122,35 @@ int main(int argc, char *argv[]){
         }
     }
 
-    if(!inputs && !budget && !bit_max && !levels) {
+    if (!inputs && !budget && !bit_max && !levels) {
     	cout << usageReport << endl;
     	exit(EXIT_FAILURE);
     }
 
-    if(!inputs || (inputs < 0)) {
+    if (inputs <= 0) {
     	cout << "Error: failure to specify valid number of inputs, program end" << endl;
     	exit(EXIT_FAILURE);
     }
-    if(!budget || (budget < 0)) {
+    if (budget <= 0) {
     	cout << "Error: failure to specify valid budget, program end" << endl;
     	exit(EXIT_FAILURE);
     }
-    if(!bit_max || (bit_max < 0)) {
+    if (bit_max <= 0) {
     	cout << "Error: failure to specify valid bit_max, program end" << endl;
     	exit(EXIT_FAILURE);
     }
-    if(!levels || (levels < 0)) {
+    if (levels <= 0) {
     	cout << "Error: failure to specify valid number of levels, program end" << endl;
     	exit(EXIT_FAILURE);
     }
 
-    /*
+	Logger* chis = new Logger("randomchisel.scala");
+	Logger* pyro = new Logger("randompyrope.prp");
+	Logger* veri = new Logger("randomverilog.v");
 
-	// How many files you want to create
-	int files = 10;
-
-	// Creates directory for each languages output files
-	mkdir("randomverilog",0777);
-	mkdir("randomchisel",0777);
-	mkdir("randompyrope",0777);
-
-	// Creates many files
-	char filename_v[1024];
-	char filename_c[1024];
-	char filename_p[1024];
-	for(int i=0;i<files;i++){
-		snprintf(filename_v, 1024, "randomverilog/randomverilog%04d.v",i);
-		snprintf(filename_c, 1024, "randomchisel/randomchisel%04d.scala",i);
-		snprintf(filename_p, 1024, "randompyrope/randompyrope%04d.prp",i);
-		FILE *v = fopen(filename_v,"w");
-		FILE *c = fopen(filename_c,"w");
-		FILE *p = fopen(filename_p,"w");
-		createHierarchy(v,c,15,7,1,2,7,seed+i);
-	}
-	*/
-	
-	// Opens file
-	char filename_v[1024];
-	char filename_c[1024];
-	char filename_p[1024];
-	snprintf(filename_v, 1024, "randomverilog.v");
-	snprintf(filename_c, 1024, "randomchisel.scala");
-	snprintf(filename_p, 1024, "randompyrope.prp");
-	FILE *verilog = fopen(filename_v, "w");
-	FILE *chisel = fopen(filename_c, "w");
-	FILE *pyrope = fopen(filename_p, "w");
-	
+	Circuit* test1 = new Circuit(chis, pyro, veri, bit_max, inputs, levels, budget, split, entropy, allow_constants);
 
     // success - creates files
-    createHierarchy(verilog, chisel, pyrope, inputs, bit_max, levels, split, budget, seed, allow_constants, memory, entropy);
+    createHierarchy(test1, seed);
     exit(EXIT_SUCCESS);
 }

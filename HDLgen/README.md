@@ -3,7 +3,7 @@ HDLgen Readme
 HDLGen is written for use with LiveHD and for affiliates of MASC (Micro Architecture Santa Cruz)
 
 This scipt is meant to produce random equivalent circuits in verilog, chisel and pyrope.
-Due to pyrope being is ongoing development, cases generated for it will be significantly less complex than for only verilog/chisel circuits.
+Due to pyrope being in ongoing development, cases generated for it will be significantly less complex than for only verilog/chisel circuits.
 
 # Use: 
 [Optional arguments]:
@@ -19,4 +19,4 @@ Due to pyrope being is ongoing development, cases generated for it will be signi
 --budget: Maximum length of expressions, the larger the budget the more complex the circuits generated
 --inputs: Amount of inputs assigned to the top level, creates that many internal experessions linked to output
 [Example Usage]:
-./Generate --inputs=3 --budget=4 --bit_max=5 --levels=3 --split=4 --allow_constants
+./Generate --inputs=3 --budget=4 --bit_max=5
