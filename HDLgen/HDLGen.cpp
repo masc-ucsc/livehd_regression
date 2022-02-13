@@ -17,16 +17,10 @@
 #include <string>
 #include <iostream>
 #include "HDLGen.h"
-#include "FunctionGen.h"
-
-#define INPUT_LIMIT 20
-#define INPUT_MIN INPUT_LIMIT/2
 
 #define SRAM_SIZE 16
 #define SRAM_DATA_SIZE 16
 #define SRAM_ADDR_SIZE 4
-
-using namespace std;
 
 // Heirarchy Creation functions -----------------------------------------------
 
@@ -34,180 +28,193 @@ using namespace std;
 // Loops through generating larger and larger submodules until the top is produced last.
 // Levels starting at 1 determines how many levels of submodules exist below the top.
 // Split is the ratio of the sizes of inputs and bit_max of each level.
-void createHierarchy(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, int budget, uint32_t seed, bool allow_constants, bool memory, bool entropy){
+void createHierarchy(Circuit* top_level, uint32_t seed) {
 	set_seed(seed);	//random start to generation
-	fprintf(c, "package randomchisel\n");
-	fprintf(c, "import chisel3._\n");		//allows scala to be compiled as chisel
-	fprintf(c,"import chisel3.util._\n");	//necessary import for utils like Cat() and Mux()
-	bool has_child=0;	//flag set once more than 1 level has been created
-	int sub_output_width;	//previous lower levels output width
-	int i;
-	int current_bit_max = bit_max;
-	int current_inputs = inputs;
-	
-	for(levels--;levels>=0;levels--){	
 
-		for(i=levels;i>0;i--){	//adjusts proper bit max and inputs levels
-			current_bit_max=(current_bit_max/split);
-			current_inputs = (current_inputs/split);
-		}	
-		if(current_inputs<1)	//modules alwayss have inputs
-			current_inputs=1;
+	Circuit* newCircuit;
+	Circuit* currentCircuit = top_level;
 
-		// Prints beginnings of each file
-		sub_output_width = declareModule(v, c, p, current_inputs, current_bit_max, levels, split, has_child);
-		// Prints wires
-		declareWires(v, c, p, current_inputs, current_bit_max, sub_output_width, has_child, allow_constants);
-		// Prints submodule instantiations
-		if(has_child)
-			createSubmodules(v, c, p, current_inputs, current_bit_max, split, levels, allow_constants, entropy);
-		// Prints assigns and concatenated output
-		declareOutput(v, c, p, current_inputs, current_bit_max, sub_output_width, budget-levels, has_child, allow_constants, entropy);
-		// Resets values for next loop
-		current_inputs = inputs;
-		current_bit_max = bit_max;
-		has_child=1;	//sets flag after first level generated
+	for (int i = currentCircuit->levels; i>1; i--) {
+		newCircuit = new Circuit(currentCircuit->c, currentCircuit->p, currentCircuit->v, 
+			currentCircuit->bit_max/currentCircuit->split, currentCircuit->inputs/currentCircuit->split, 
+			currentCircuit->levels - 1, currentCircuit->budget-currentCircuit->levels, currentCircuit->split, 
+			currentCircuit->entropy, currentCircuit->constants);
+
+		if (!(currentCircuit->setChild(newCircuit) && newCircuit->setParent(currentCircuit))) {
+			std::cerr << "Linking circuits failed at level " << i << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		currentCircuit = newCircuit;	
 	}
-	if(memory){}	//creates separate output driven by small SRAM module
 
+	while (currentCircuit) {		//creation loop
+		currentCircuit->declareModule();
+		currentCircuit->declareWires();
+		if (currentCircuit->hasChild())
+			currentCircuit->createSubmodules();
+		currentCircuit->declareOutput();
+		currentCircuit = currentCircuit->getParent();
+	}
 }
 
-// declareModule(), helper to init_IO()
-// Prints verilog standard module declaration to files
-// Randomly creates and returns amount of input variables to be used
-// If 0 inputs is passed in, a random amound of inputs is created
-// Returns sub modules output width, or 0 if there is no child
-int declareModule(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, bool has_child){
+// Prints verilog/chisel standard module declaration to files
+void Circuit::declareModule() {
 	// First necessary lines, names submodule if necessary
-	fprintf(v,"module ");
-	fprintf(c, "\nclass ");
-	for(int i =levels;i>0;i--){				//names submodule accordingly
-		fprintf(v, "sub_");
-		fprintf(c, "sub_");
+	v->log("module ");
+	c->log("\nclass ");
+
+	for (int i = levels; i > 1; i--) {				//names submodule accordingly
+		v->log("sub_");
+		c->log("sub_");
 	}
-	fprintf(v,"randomverilog(");	
-	fprintf(c,"randomchisel extends Module {\n");
-	fprintf(c, "	val io = IO(new Bundle {\n");
+
+	v->log("randomverilog(");	
+	c->log("randomchisel extends Module {\n");
+	c->log("	val io = IO(new Bundle {\n");
+
+	dumpLogs();
 
 	// Declares Inputs/Outputs depending on if the module has a child (submodule) or not
-	return verilog_chiselIO(v,c,p,inputs,bit_max,levels,split,has_child);
+	verilog_chiselIO();
 }
 
-// verilog_chiselIO()
 // Helper (more like doer of pretty much everything) to declareModule
 // Prints to file inputs and outputs of currently declaring module
-// Returns sub modules output width, or 0 if there is no child
-int verilog_chiselIO(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int levels, int split, bool has_child){
-	fprintf(v, "	input clock,\n" );	//need this for comparison to chisel, as clk and rst are implied inputs
-	fprintf(v, "	input reset,\n" );
-	fprintf(p, "$clock.__sbits = 1\n");
-	fprintf(p, "$reset.__sbits = 1\n");
-	int i;
-	int output_width=0;
-	int current_width=0;
-	int sub_output_width=0;
-	int bit_min=bit_max/2;
-	if(has_child){
-		// Calculates submodules output width, for each wire to be created will also be a submodule instantiation
-		int sub_inputs = inputs/split;
-		int sub_bit_max = bit_max/split;
-		int sub_bit_min = sub_bit_max/2;
-		for(i=0;i<sub_inputs;i++){
-			sub_output_width+=sub_bit_min+1+(i%(sub_bit_max-sub_bit_min+1));
+void Circuit::verilog_chiselIO() {
+	v->log("\n	input clock,\n" );	//need this for comparison to chisel, as clk and rst are implied inputs
+	v->log("	input reset,\n" );
+	p->log("$clock.__sbits = 1\n");
+	p->log("$reset.__sbits = 1\n");
+
+	int current_width;
+
+	for (int i = 0; i < inputs; i++) {	//prints inputs
+		current_width = getInputWidth(i);
+
+		std::string v_sign = "[";
+		std::string c_sign = "UInt(";
+
+		if (current_width % 2) {
+			v_sign = "signed [";
+			c_sign = "SInt(";
 		}
 
-		for(i=0;i<(inputs/2);i++){	//Calculates output_width, which is the first half of the inputs created, and the same amount of submodule insantiations
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
-			output_width += current_width;
-			output_width += sub_output_width;
-		}
+		v->log("	input " + v_sign + STR(current_width - 1) + ":0] io_a" + STR(i) + ",\n");
+		c->log("		val a" + STR(i) + " = Input(" + c_sign + STR(current_width) + ".W))\n");
+		p->log("$io_a" + STR(i) + ".__sbits = " + STR(current_width) + "\n");	 //pyrope always uses signed IO, better to create internal wires that copy verilog/chisel unsigned wires
+	}
 
-	}
-	for(i=0;i<inputs;i++){	//prints inputs
-		current_width = bit_min+1+(i%(bit_max-bit_min+1));
-		fprintf(v, "	input %s[%d:0] io_a%d,\n",current_width%2?"signed ":"",current_width-1,i);
-		fprintf(c, "		val a%d = Input(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
-		fprintf(p, "$io_a%d.__sbits = %d\n",i,current_width);	 //pyrope always uses signed IO, better to create internal wires that copy verilog/chisel unsigned wires
-		if(!has_child){
-			output_width += current_width;
-		}
-	}
-	fprintf(v, "	output [%d:0] io_y);\n",output_width-1);
-	fprintf(c, "		val y = Output(UInt(%d.W))\n",output_width);
-	fprintf(c, "	})\n");
-	fprintf(p, "%%io_y.__sbits = %d\n",output_width);  //pyrope always uses signed IO, better to just set it as signed than have it create a unsigned output forcing width+1
-	return sub_output_width;
+	v->log("	output [" + STR(output_width-1) + ":0] io_y);\n");
+	c->log("		val y = Output(UInt(" + STR(output_width) + ".W))\n");
+	c->log("	})\n");
+	p->log("%io_y.__sbits = " + STR(output_width) + "\n");  //pyrope always uses signed IO, better to just set it as signed than have it create a unsigned output forcing width+1
+
+	dumpLogs();
 }
 
-// declareWires()
-// Createswires which will serve either as the output of the top level, or as connections to lower levels
-void declareWires(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, bool has_child, bool allow_constants){
-	fprintf(v, "\n" );
-	fprintf(c, "\n" );
-	int i,current_width;
-	int bit_min=bit_max/2;
-	if(has_child){
-		for(i=0;i<(inputs/2);i++){	//prints submodule output wires
-			fprintf(v, "	wire [%d:0] x%d;\n",sub_output_width-1,i);
-			fprintf(c, "	val x%d = Wire(UInt(%d.W))\n",i,sub_output_width);
-		}
-		
-	}
-	fprintf(v, "\n");
-	fprintf(c, "\n");
-	if(allow_constants){	//does the same thing as generic top level wires, only all operands are constants
-		for(i=0;i<(inputs/(has_child?2:1));i++){	//prints top level logic wires
-			current_width = bit_min+1+(i%(bit_max-bit_min+1));
-			fprintf(v, "	wire %s[%d:0] b%d;\n",current_width%2?"signed ":"",current_width-1,i);
-			fprintf(c, "	val b%d = Wire(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
+// Creates wires which will serve either as the output of the top level, or as
+// connections to lower levels
+void Circuit::declareWires() {
+	v->log("\n" );
+	c->log("\n" );
+
+	int i, current_width;
+
+	std::string v_wire_sign, c_wire_sign, prp_wire_sign;
+
+	if (hasChild()) {
+		for (i = 0; i < inputs / 2; i++) {	//prints submodule output wires
+			v->log("	wire [" + STR(getChild()->output_width-1) + ":0] x" + STR(i) + ";\n");
+			c->log("	val x" + STR(i) + " = Wire(UInt(" + STR(getChild()->output_width) + ".W))\n");
 		}
 	}
-	fprintf(v, "\n");
-	fprintf(c, "\n");
-	for(i=0;i<(inputs/(has_child?2:1));i++){	//prints top level logic wires
-		current_width = bit_min+1+(i%(bit_max-bit_min+1));
-		fprintf(v, "	wire %s[%d:0] y%d;\n",current_width%2?"signed ":"",current_width-1,i);
-		fprintf(c, "	val y%d = Wire(%s(%d.W))\n",i,current_width%2?"SInt":"UInt",current_width);
+
+	v->log("\n");
+	c->log("\n");
+
+	if (constants) {	//does the same thing as generic top level wires, only all operands are constants
+		for (i = 0; i < (inputs/(hasChild()?2:1)); i++){	//prints top level logic wires
+			current_width = getInputWidth(i);
+
+			if (current_width % 2) {
+				v_wire_sign = " signed ";
+				c_wire_sign = "SInt(";
+			}
+			else {
+				v_wire_sign = " ";
+				c_wire_sign = "UInt(";
+			}
+
+			v->log("	wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + ";\n");
+			c->log("	val b" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
+		}
+	}
+
+	v->log("\n");
+	c->log("\n");
+
+	for (i = 0; i < (inputs/(hasChild()?2:1)); i++) {	//prints top level logic wires
+		current_width = getInputWidth(i);
+
+		if (current_width % 2) {
+			v_wire_sign = " signed ";
+			c_wire_sign = "SInt(";
+			prp_wire_sign = "s";
+		}
+		else {
+			v_wire_sign = " ";
+			c_wire_sign = "UInt(";
+			prp_wire_sign = "u";
+		}
+
+		v->log("	wire [" + STR(current_width-1) + ":0] y" + STR(i) + ";\n");
+		c->log("	val y" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
 		//pyrope always has signed IO, so we need to create wires that represent the unsigned IO verilog/chisel uses
-		fprintf(p, "\na%d.__%cbits = %d\n",i,current_width%2?'s':'u',current_width);
-		fprintf(p, "a%d = $io_a%d\n",i,i);
-		fprintf(p, "y%d.__%cbits = %d\n",i,current_width%2?'s':'u',current_width);
+		p->log("\na" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
+		p->log("a" + STR(i) + " = $io_a" + STR(i) + "\n");
+		p->log("y" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
 	}
+	dumpLogs();
 }
 
-
-// createROM(), helper to declareWires()
 // Creates a Chisel based ROM from its VecInit function, with UInt elements
 // ROM defaults any unknown addr values to the 0 element in the vector
-void createROM(FILE *v, FILE *c, FILE *p, int inputs, int bit_max) {
-	uint32_t rom_addr_size = inputs;
+void Circuit::createROM() {
+	int rom_addr_size = inputs;
 	rom_addr_size |= rom_addr_size >> 1;   // Divide by 2^k for consecutive doublings of k up to 32,
 	rom_addr_size |= rom_addr_size >> 2;   // and then or the results.
 	rom_addr_size |= rom_addr_size >> 4;
 	rom_addr_size |= rom_addr_size >> 8;
 	rom_addr_size |= rom_addr_size >> 16;
 	rom_addr_size -= rom_addr_size >> 1;
-	fprintf(v, "\nwire rom_addr [%d:0] = ", rom_addr_size);
-	fprintf(c, "\nval rom_addr = Wire(UInt(%d.W))", rom_addr_size+1);
-	functionGen(v, c, p, inputs, bit_max, rom_addr_size+1, 3, 0, 0, 1, 0, 0, 1, 0, 0, 0);
+
+	v->log("\nwire rom_addr [" + STR(rom_addr_size) + ":0] = ");
+	c->log("\nval rom_addr = Wire(UInt(" + STR(rom_addr_size + 1) + ".W))");
+
+	functionGen(rom_addr_size+1, 3, 0, 0, 1, 0, 0, 0);
+
 	// Due to verilog ROM and chisel ROM specifying first two elements in different orders we must precompute
 	int elm1 = num_less_than(bit_max);
 	int elm2 = num_less_than(bit_max);
-	fprintf(v, ";\n");
-	fprintf(c, "\nval rom = VecInit(%d.U, %d.U", elm1, elm2);
-	fprintf(v, "wire [%d:0] _ROM_1 = %d'h1 == rom_addr ? %d'h%d : %d'h%d;\n", bit_max, rom_addr_size, bit_max+1, elm2, bit_max+1, elm1);
-	for(int i=2; i<=bit_max; i++) {
-		fprintf(v, "wire [%d:0] _ROM_%d = %d'h%d == rom_addr ? ", bit_max, i, rom_addr_size, i);
-		fprintf(c, ", ");
-		randomConstant(v, c, bit_max+1, 0);
-		fprintf(v, ": _ROM_%d;\n", i-1);
+
+	v->log(";\n");
+	c->log("\nval rom = VecInit(" + STR(elm1) + ".U, " + STR(elm2) + ".U");
+	v->log("wire [" + STR(bit_max) + ":0] _ROM_1 = " + STR(rom_addr_size) + "'h1 == rom_addr ? " + STR(bit_max+1) + "'h" + STR(elm2) + " : " + STR(bit_max+1) + "'h" + STR(elm1) + ";\n");
+
+	for (int i = 2; i <= bit_max; i++) {
+		v->log("wire [" + STR(bit_max) + ":0] _ROM_" + STR(i) + " = " + STR(rom_addr_size) + "'h" + STR(i) + " == rom_addr ? ");
+		c->log(", ");
+		randomConstant(bit_max + 1, 0);
+		v->log(": _ROM_" + STR(i - 1) + ";\n");
 	}
-	fprintf(c, ")\n");
+
+	c->log(")\n");
+
+	dumpLogs();
 }
 
-// declareSubmodules()
 // Handles declaration of each submodule, given the previously generates x wires for their output
-void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int split, int levels, bool allow_constants, bool entropy){
+void Circuit::createSubmodules() {	//TO-DO FIX ME!!!
 	int i,j,current_width;
 	int sub_inputs = inputs/split;
 	if(sub_inputs<1){
@@ -216,95 +223,129 @@ void createSubmodules(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sp
 	int sub_bit_max = bit_max/split;
 	int sub_bit_min=sub_bit_max/2;
 	
-	string sub = "";
-	for(j=0;j<levels+1;j++){
+	std::string sub;
+	for (j = 0; j < levels+1; j++)
 		sub = sub + "sub_";
-	}
-	const char* sub_ptr = sub.data();
-	for(i=0;i<(inputs/2);i++){	//creates a submodule for each x wire
-		fprintf(v, "	%srandomverilog %sm_%d (.clock(clock),\n",sub_ptr,sub_ptr,i);
-		fprintf(v, "			.reset(reset),\n");
 
-		fprintf(c, "	val %sm_%d = Module(new %srandomchisel())\n",sub_ptr,i,sub_ptr);
+	for (i = 0;i < inputs / 2; i++) {	//creates a submodule for each x wire
+		v->log("\n	" + sub + "randomverilog " + sub + "m_" + STR(i) + " (.clock(clock),\n");
+		v->log("			.reset(reset),\n");
+
+		c->log("	val " + sub + "m_" + STR(i) + " = Module(new " + sub + "randomchisel())\n");
 		// Begins assigning inputs to submodules
-		for(j=0;j<sub_inputs;j++){
+		for (j = 0; j < sub_inputs; j++) {
 			current_width = sub_bit_min+1+(j%(sub_bit_max-sub_bit_min+1));
-			fprintf(v, "			.io_a%d(",j);
-			fprintf(c, "	%sm_%d.io.a%d := ",sub_ptr,i,j);
+			v->log("			.io_a" + STR(j) + "(");
+			c->log("	" + sub + "m_" + STR(i) + ".io.a" + STR(j) + " := ");
 			/*if(current_width%2){
-				fprintf(v, "$signed" );
+				v->log("$signed" );
 			}*/
-			randomInput(v, c, p, inputs, bit_max, current_width, current_width%2, 1, 0, allow_constants, j, 1, entropy);	//needs to know if signed inputs align or not
+			randomInput(current_width, current_width%2, 1, 0, j);	//needs to know if signed inputs align or not
 			/*if(current_width%2){
-				fprintf(c, ".asSInt" );
+				c->log(".asSInt" );
 			}*/
-			fprintf(v, "),\n");
-			fprintf(c, "\n");
+			v->log("),\n");
+			c->log("\n");
 		}
 		// Prints output connections
-		fprintf(v, "			.io_y(x%d));\n",i);
-		fprintf(c, "	x%d := %sm_%d.io.y\n",i,sub_ptr,i);
+		v->log("			.io_y(x" + STR(i) + "));\n");
+		c->log("	x" + STR(i) + " := " + sub + "m_" + STR(i) + ".io.y\n");
 	}
+	dumpLogs();
 }
 
-// declareOutput()
 // Does assign statements for each top level wire and connects all wires to concatenated output
-void declareOutput(FILE *v, FILE *c, FILE *p, int inputs, int bit_max, int sub_output_width, int budget, bool has_child, bool allow_constants, bool entropy){
-	fprintf(v, "\n" );
-	fprintf(c, "\n" );
+void Circuit::declareOutput() {
+	v->log("\n" );
+	c->log("\n" );
+
 	int i, current_width;
 	int prp_shift_counter = 0;	//due to a lack of prp support for concat, we must shift and OR wires into the output
-	if(has_child){
-		if(allow_constants){
-			for(i=0;i<(inputs/2);i++){	//assigns top level complex constant declarations
-				current_width = getInputWidth(bit_max, i);
-				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child,0);
+	std::string v_separator, c_separator, p_separator;
+
+	if (hasChild()) {
+		if (constants) {
+			for(i = 0; i < inputs / 2; i++) {	//assigns top level complex constant declarations
+				current_width = getInputWidth(i);
+				printAssignments(current_width, budget, i, current_width % 2, 1);
 			}
 		}
-		fprintf(v, "\n");
-		fprintf(c, "\n");
-		for(i=0;i<(inputs/2);i++){	//assigns top level wires
-			current_width = getInputWidth(bit_max, i);
-			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child,entropy);
 
+		v->log("\n");
+		c->log("\n");
+
+		for (i = 0; i < inputs / 2; i++) {	//assigns top level wires
+			current_width = getInputWidth(i);
+			printAssignments(current_width, budget, i, current_width % 2, 0);
 		}
-		fprintf(v, "\n	assign io_y = {");
-		fprintf(c, "\n	io.y := Cat(");
-		for(i=0;i<(inputs/2);i++){	//creates concatenated output TO-DO: REVERSE ORDER OF WIRES PRINTED
-			current_width = getInputWidth(bit_max, i);
-			fprintf(v, "x%d,",i);
-			fprintf(v, "y%d%c",i,i==(inputs/2)-1?'}':',');
-			fprintf(c, "x%d(%d,0),",i,sub_output_width-1);
-			fprintf(c, "y%d(%d,0)%c",i, current_width-1,i==(inputs/2)-1?')':',');
+
+		v->log("\n	assign io_y = {");
+		c->log("\n	io.y := Cat(");
+
+		for (i = 0; i < inputs / 2; i++) {	//creates concatenated output TO-DO: REVERSE ORDER OF WIRES PRINTED
+			current_width = getInputWidth(i);
+
+			if(i == inputs/2 - 1) {
+				v_separator = "}";
+				c_separator = ")";
+			}
+			else {
+				v_separator = ",";
+				c_separator = ",";
+			}
+
+			v->log("x" + STR(i) + ",");
+			v->log("y" + STR(i) + v_separator);
+			c->log("x" + STR(i) + "(" + STR(getChild()->output_width - 1) + ",0),");
+			c->log("y" + STR(i) + "(" + STR(current_width - 1) + ",0)" + c_separator);
 		}
 	}
-	else{
-		if(allow_constants){
-			for(i=0;i<inputs;i++){	//assigns top level complex constant declarations
-				current_width = getInputWidth(bit_max, i);
-				printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,1,allow_constants,has_child,0);
+	else {
+		if (constants) {
+			for (i = 0; i < inputs; i++) {	//assigns top level complex constant declarations
+				current_width = getInputWidth(i);
+				printAssignments(current_width,budget,i,current_width%2,1);
 			}
 		}
-		fprintf(v, "\n");
-		fprintf(c, "\n");
-		for(i=0;i<inputs;i++){	//assigns top level wires
-			current_width = getInputWidth(bit_max, i);
-			printAssignments(v,c,p,inputs,bit_max,current_width,budget,i,current_width%2,0,allow_constants,has_child,entropy);
+
+		v->log("\n");
+		c->log("\n");
+
+		for (i = 0; i < inputs; i++) {	//assigns top level wires
+			current_width = getInputWidth(i);
+			printAssignments(current_width, budget, i, current_width%2, 0);
 			prp_shift_counter += current_width;
 		}
-		fprintf(v, "\n	assign io_y = {");
-		fprintf(c, "\n	io.y := Cat(");
-		fprintf(p, "\n %%io_y =");
-		for(i=inputs-1;i>=0;i--){	//creates concatenated output
-			current_width = getInputWidth(bit_max, i);
+
+		v->log("\n	assign io_y = {");
+		c->log("\n	io.y := Cat(");
+		p->log("\n %io_y =");
+
+		for (i = inputs - 1; i >= 0; i--) {	//creates concatenated output
+			current_width = getInputWidth(i);
 			prp_shift_counter -= current_width;
-			fprintf(v, "y%d%c",i,!i?'}':',');
-			fprintf(c, "y%d(%d,0)%c",i, current_width-1, !i?')':',');
-			fprintf(p, " ((y%d & %d) << %d) %c",i, (1 << current_width) - 1, prp_shift_counter, !i?' ':'|');
+
+
+			if (i) {
+				v_separator = ",";
+				c_separator = ",";
+				p_separator = "|";
+
+			}
+			else {
+				v_separator = "}";
+				c_separator = ")";
+				p_separator = " ";
+			}
+			v->log("y" + STR(i) + v_separator);
+			c->log("y" + STR(i) + "(" + STR(current_width - 1) + ",0)" + c_separator);
+			p->log(" ((y" + STR(i) + " & " + STR((1 << current_width) - 1) + ") << " + STR(prp_shift_counter) + ") " + p_separator);
 		}
 	}
-	fprintf(v, ";" );
-	fprintf(v, "\nendmodule\n");
-	fprintf(c, "\n}\n" );
-}
 
+	v->log(";" );
+	v->log("\nendmodule\n");
+	c->log("\n}\n" );
+
+	dumpLogs();
+}
