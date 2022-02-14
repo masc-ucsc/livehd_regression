@@ -139,14 +139,17 @@ void Circuit::declareWires() {
 			if (current_width % 2) {
 				v_wire_sign = " signed ";
 				c_wire_sign = "SInt(";
+				prp_wire_sign = "s";
 			}
 			else {
 				v_wire_sign = " ";
 				c_wire_sign = "UInt(";
+				prp_wire_sign = "u";
 			}
 
 			v->log("	wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + ";\n");
 			c->log("	val b" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
+			p->log("b" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
 		}
 	}
 

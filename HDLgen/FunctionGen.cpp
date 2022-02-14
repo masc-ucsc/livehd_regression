@@ -658,6 +658,7 @@ void Circuit::randomConstant(int width, bool _signed) {
 
 	v->log("(" + roll_neg + STR(width) + v_sign + value + ")");
 	c->log("(" + roll_neg + value + "." + c_sign + "(" + STR(width) + "))");
+	p->log("(" + roll_neg + value + ")");
 }
 
 // getInputWidth()
