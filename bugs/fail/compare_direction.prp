@@ -1,9 +1,6 @@
-$a.__sbits = 5
-$b.__sbits = 5
-
-%c.__sbits = 1
-
-%c = $a >= $b
+let f = fun(a, b) -> (c) {
+    c = a >= b
+}
 
 // SOURCE OF THE ISSUE:
 // >= and <= to doesn't translate to verilog properly
@@ -21,4 +18,4 @@ $b.__sbits = 5
 // instead the verilog generated should be 
 // c = (~(a < b));
 // when pyrope is
-// %c = $a >= $b
+// c = a >= b

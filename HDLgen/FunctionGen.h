@@ -22,11 +22,18 @@ class Logger {
 private:
 	std::ofstream logFile;
 	std::string statement;
-	bool entropy;
+	
+	int char_count;		//Keeps track of how many chars have been logged to target file
+	
 
 public:
+	bool error, error_mode;
+	int comb_wire_1, comb_wire_2;	//ordered wire numbers which make up combinational loop
+
 	Logger(const std::string& logFileName) {
 		logFile.open(logFileName);
+		char_count = 0;
+		comb_wire_1 = comb_wire_2 = -1;
 	}
 
 	~Logger() {
@@ -35,9 +42,15 @@ public:
 
 	// Access functions -----------------------------------------------------------
 
-	void setEntropy() {
-		entropy = true;
+	void setError(int wire_1, int wire_2) {
+		error = true;
+		comb_wire_1 = wire_1;
+		comb_wire_2 = wire_2;
 	}
+
+	int getCharCount() { return char_count; }
+
+	int getStatementLength() { return statement.length(); }
 
 	// Print to file functions ----------------------------------------------------------
 
@@ -46,8 +59,21 @@ public:
 	}
 
 	void dumpLog() {
+		char_count += (int)statement.size();
     	logFile << statement << std::endl;
     	statement.clear();
+	}
+
+	// Error creation functions ------------------------------------------------------------
+	/* Swaps the positions of two chars.
+	Selections that must be avoided as there is a chance
+	that they will not introduce a real error:
+	- Swapping two chars that are equivalent
+	- Swapping two digits of a constant if the value is within range
+	- Swapping two digits of a named wire if there exists another such wire
+	- Swapping open parenthesis with unary operator */
+	void mutate_char_transpose() {
+		//TO-DO create for new pyrope front end
 	}
 
 };
@@ -64,7 +90,7 @@ public:
 	int levels;
 	int split;
 	int budget;
-	int entropy;
+	int error;
 
 	bool constants;
 
@@ -81,30 +107,30 @@ public:
 
 //public:
 
-	Circuit (Logger* chisel_file, Logger* pyrope_file, Logger* verilog_file, int circuit_bit_max, int circuit_inputs, int circuit_levels, int rng_budget, int hier_split, bool allow_entropy, bool allow_constants) {
+	Circuit (Logger* chisel_file, Logger* pyrope_file, Logger* verilog_file, int circuit_bit_max, int circuit_inputs, int circuit_levels, int rng_budget, int hier_split, bool allow_error, bool allow_constants) {
 		bit_max = circuit_bit_max;
 		inputs 	= circuit_inputs;
 		levels 	= circuit_levels;
 		split 	= hier_split;
 		budget 	= rng_budget;
 
-		entropy   = allow_entropy;
+		error   = allow_error;
 		constants = allow_constants;
 
 		bit_min = bit_max / 2;
 		output_width = 0;
-		for(int k = 0; k < inputs; k++) {
+
+		for (int k = 0; k < inputs; k++)
 			output_width += bit_min + 1 + (k % (bit_max - bit_min + 1));
-		}
 
 		c = chisel_file;
 		p = pyrope_file;
 		v = verilog_file;
 
-		if(entropy) {
-			c->setEntropy();
-			p->setEntropy();
-			v->setEntropy();
+		if (error) {
+			c->setError(1,2);
+			p->setError(1,2);
+			v->setError(1,2);
 		}
 
 		child  = NULL;
@@ -114,10 +140,12 @@ public:
 
 	~Circuit() { }
 
+	// Child and Parent Access Functions
+
 	Circuit* getParent() { return parent; }
 
 	bool setParent(Circuit* crct) {	//Just to be safe
-		if(!crct)
+		if (!crct)
 			return false;
 		parent = crct;
 		return true;
@@ -126,13 +154,15 @@ public:
 	Circuit* getChild() { return child; }
 
 	bool setChild(Circuit* crct) {
-		if(!crct)
+		if (!crct)
 			return false;
 		child = crct;
 		return true;
 	}
 
-	bool hasChild() { return !(child == NULL); }
+	bool hasChild() { return child != NULL; }
+
+	// Logger functions
 
 	void dumpLogs() {
 		c->dumpLog();
@@ -140,29 +170,39 @@ public:
 		v->dumpLog();
 	}
 
+	void startErr() {
+		std::cout << "randomverilog.v:comb_loop:" << STR(v->getCharCount());
+		v->error = true;
+	}
+
+	void clearErr() {
+		std::cout << ":" << STR(v->getStatementLength() + v->getCharCount()) << std::endl;
+		v->error = false;
+	}
+
 	// Circuit creation functions --------------------------------------------------------
 
 	// Takes care of possible conditionals and generic wire assignments
-	void printAssignments(int width, int budget, int wire_number, bool _signed, bool force_constants);
+	void printAssignments(int width, int func_budget, int wire_number, bool _signed, bool force_constants);
 
 	// Uses recursive helper functions to create randomized functions
 	// Length of functions decided by budget which determines how many recursive
 	// iterations are allowed to occur within each function
-	void functionGen(int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, int limit);
+	void functionGen(int width, int func_budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, int limit);
 
 	// Recursively fufills a bit width requirement through concatenating 
 	// randomly chosen bit widths taken from inputs and other functions
-	void concatGen(int width, int budget, bool force_concat, bool no_mult, bool force_constants, int limit);
+	void concatGen(int width, int func_budget, bool force_concat, bool no_mult, bool force_constants, int limit);
 
 	// Recursively fufills a bit width requirement through binary operations
 	// that output the necessary bit width
-	void binaryGen(int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, int limit);
+	void binaryGen(int width, int func_budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, int limit);
 
 	// Prints a random part or whole input depending on
 	// the width requested, depends on inputWidthRequest()
 	// Also acts as a single bit random generator, using logical
 	// and unary operators to produce values
-	void randomInput(int width, bool _signed, bool allow_invert, bool force_constants, int limit);
+	void randomInput(int width, int func_budget, bool _signed, bool allow_invert, bool force_constants, int limit);
 
 	// Helper functions ----------------------------------------------------------
 

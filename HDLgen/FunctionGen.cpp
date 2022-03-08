@@ -182,14 +182,14 @@ int num_less_than(int n) {
 
 // functionGen()
 // Uses recursive helper functions to create randomized functions
-// Length of functions decided by budget which determines how many recursive
+// Length of functions decided by func_budget which determines how many recursive
 // iterations are allowed to occur within each function
-void Circuit::functionGen(int width, int budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, int limit){
+void Circuit::functionGen(int width, int func_budget, bool _signed, bool force_concat, bool allow_invert, bool no_mult, bool force_constants, int limit){
 	bool invert = one_out_of(2, allow_invert);//xorshift32()%(1+allow_invert);
 	// 2 main posiblities: concatonation or binary operation
 	// PYROPE-REMOVE
 	if(1/*xorshift32()%3*/)
-		binaryGen(width, budget, _signed, invert, force_concat, no_mult, force_constants, limit);		
+		binaryGen(width, func_budget, _signed, invert, force_concat, no_mult, force_constants, limit);		
 	else{	
 		if(_signed){
 			v->log("$signed(");
@@ -198,7 +198,7 @@ void Circuit::functionGen(int width, int budget, bool _signed, bool force_concat
 			v->log("~");
 			c->log("~");
 		}
-		concatGen(width, budget, force_concat, no_mult, force_constants, limit);	//concat always returns uints so can be simple recasted
+		concatGen(width, func_budget, force_concat, no_mult, force_constants, limit);	//concat always returns uints so can be simple recasted
 		if(_signed){
 			v->log(")" );
 			c->log(".asSInt");
@@ -212,13 +212,13 @@ void Circuit::functionGen(int width, int budget, bool _signed, bool force_concat
 // concatGen()
 // Recursively fufills a bit width requirement through concatenating 
 // randomly chosen bit widths taken from inputs and other functions
-void Circuit::concatGen(int width, int budget, bool force_concat, bool no_mult, bool force_constants, int limit){
-	budget--;
+void Circuit::concatGen(int width, int func_budget, bool force_concat, bool no_mult, bool force_constants, int limit){
+	func_budget--;
 	v->log("{");
 	c->log("Cat(");
 
-	if(!budget)
-		randomInput(width, 0, 1, force_constants, limit);
+	if(!func_budget)
+		randomInput(width, 0, 0, 1, force_constants, limit);
 	else {
 		while(width > 0) {
 			int range = width;
@@ -227,10 +227,10 @@ void Circuit::concatGen(int width, int budget, bool force_concat, bool no_mult, 
 				range = bit_max + 1;
 			int sub_width = num_less_than(range) + 1;//xorshift32() % range + 1;
 			if(one_out_of(3, true, true)/*xorshift32()%3*/) {
-				binaryGen(sub_width, budget, 0, 1, force_concat, no_mult, force_constants, limit);
+				binaryGen(sub_width, func_budget, 0, 1, force_concat, no_mult, force_constants, limit);
 			}
 			else {
-				concatGen(sub_width, sub_width==1 ? 1 : budget, force_concat, no_mult, force_constants, limit);		//cant split anymore once sub_width is 1
+				concatGen(sub_width, sub_width==1 ? 1 : func_budget, force_concat, no_mult, force_constants, limit);		//cant split anymore once sub_width is 1
 			}
 
 			if(width > sub_width) {
@@ -249,7 +249,7 @@ void Circuit::concatGen(int width, int budget, bool force_concat, bool no_mult, 
 // binaryGen()
 // Recursively fufills a bit width requirement through binary operations
 // that output the necessary bit width
-void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, int limit){
+void Circuit::binaryGen(int width, int func_budget, bool _signed, bool invert, bool force_concat, bool no_mult, bool force_constants, int limit){
 	// PYROPE-REMOVE
 	//int op = xorshift32()%11;//roll for operator, doesn't do signed right shifts for single bits
 	int op = num_less_than(6);//xorshift32()%6;	//anything past * isnt guaranteed to work
@@ -259,24 +259,24 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 	bool shift_sign = _signed;
 	bool allow_invert =1;	//prevents further operations from being inverted due to issues with inverted operands in arithmetic ops
 	int width_1,width_2;	//replace the working width with something new to expand for proper signed mult/div ops
-	budget--;
+	func_budget--;
 	if(width==1 && ((op==6 && _signed)|| (op==5 ))){	//signed division and mulitplication output (0 bits, >1 bits respectively), need to force to another operation
 		op = 3 + (op==5);	//sets to either + or -
 	}
 	// PYROPE-REMOVE
 	//Muxes force their second inputs to be unsigned if their first is unsigned, this interferes with signed right shifts, concatenation breaks it away from this
-	/*if((op==10) && (force_concat) && (width==1) && (budget>0)){	//single bit width SRS cannot be forced to be concated them selves, better to just request a single bit
+	/*if((op==10) && (force_concat) && (width==1) && (func_budget>0)){	//single bit width SRS cannot be forced to be concated them selves, better to just request a single bit
 		randomInput(v,c,inputs,bit_max,width,_signed,allow_invert,force_constants,allow_constants,limit,has_child);
 	}*/
 	//else{	//otherwise cuts off by a single bit
 		// PYROPE-REMOVE
 		/*
-		if((op==10) && (force_concat) && (budget>0)){	//in this special case, the width of the SRS will be reduced by 1 and coancated with a 1'b0 to isolate it and maintain signness
+		if((op==10) && (force_concat) && (func_budget>0)){	//in this special case, the width of the SRS will be reduced by 1 and coancated with a 1'b0 to isolate it and maintain signness
 			v->log("{$signed(1'b0),");
 			c->log("Cat(0.S,");
 			width--;
 		}*/
-		if(((op>6) && _signed && (budget>0)) && (op<9)){	//part selecting for chisel returns UInt, need to recast. Applicable only for % and <<
+		if(((op>6) && _signed && (func_budget>0)) && (op<9)){	//part selecting for chisel returns UInt, need to recast. Applicable only for % and <<
 			v->log("$signed");
 			c->log("(");
 		}
@@ -313,9 +313,9 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 		v->log("(");
 		c->log("(");
 		p->log("(");
-		if(budget==0){
+		if(func_budget==0){
 			// print full binary operation
-			randomInput(width,_signed, allow_invert, force_constants, limit);
+			randomInput(width, 0, _signed, allow_invert, force_constants, limit);
 		}
 		else{	
 			// Mult and Div modifiers
@@ -349,11 +349,11 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 
 			//rolls whether or not to expand binary operation heirarchy
 			if(one_out_of(2, op > 7 || op < 3)/*xorshift32()%(1 + (op>7 || op<3))*/) {	//expands, prevents nested arithmetic operations, those become too confusing for yosys compiler
-				functionGen(width_1, budget, shift_sign, 0, allow_invert, no_mult, force_constants, limit);
+				functionGen(width_1, func_budget, shift_sign, 0, allow_invert, no_mult, force_constants, limit);
 			}
 			else{
 				//binary operation
-				randomInput(width_1, shift_sign, allow_invert, force_constants, limit);
+				randomInput(width_1, 0, shift_sign, allow_invert, force_constants, limit);
 			}
 
 
@@ -363,11 +363,11 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 
 			//roll for second operand
 			if(one_out_of(2, op > 7 || op < 3)/*xorshift32()%(1 + (op>7 || op<3))*/) {	//expands
-				functionGen(width_2, budget, op>7?0:_signed, 0, allow_invert, no_mult, force_constants, limit); 	//prevents shifting by a negative number, forces uint to be used
+				functionGen(width_2, func_budget, op>7?0:_signed, 0, allow_invert, no_mult, force_constants, limit); 	//prevents shifting by a negative number, forces uint to be used
 			}
 			else{
 				//binary operation
-				randomInput(width_2, op>7?0:_signed, allow_invert, force_constants, limit);	//prevents shifting by a negative number, forces uint to be used
+				randomInput(width_2, 0, op>7?0:_signed, allow_invert, force_constants, limit);	//prevents shifting by a negative number, forces uint to be used
 			}
 
 
@@ -379,7 +379,7 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 		//if(op==10){
 		//	c->log(".asSInt)");
 		//}
-		if(((op>6) && (budget>0)) && (op<9)){	//part selecting for chisel returns UInt, need to recast. Only applicable for % and <<
+		if(((op>6) && (func_budget>0)) && (op<9)){	//part selecting for chisel returns UInt, need to recast. Only applicable for % and <<
 			std::string part_sel = width == 1 ? "(0)" : "(" + STR(width-1) + ",0)";
 			c->log(part_sel);	//recasts part select
 			if(_signed)
@@ -398,7 +398,7 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 
 		// PYROPE-REMOVE
 		/*
-		if((op==10) && (force_concat) && (budget>0)){	//in this special case, the width of the SRS will be reduced by 1 and coancated with a 1'b0 to isolate it and maintain signness
+		if((op==10) && (force_concat) && (func_budget>0)){	//in this special case, the width of the SRS will be reduced by 1 and coancated with a 1'b0 to isolate it and maintain signness
 			v->log("}");
 			c->log(")");
 			width--;
@@ -419,50 +419,64 @@ void Circuit::binaryGen(int width, int budget, bool _signed, bool invert, bool f
 // the width requested, depends on inputWidthRequest()
 // Also acts as a single bit random generator, using logical
 // and unary operators to produce values
-void Circuit::randomInput(int width, bool _signed, bool allow_invert, bool force_constants, int limit){
-	int inputchosen,input_range;
+void Circuit::randomInput(int width, int func_budget, bool _signed, bool allow_invert, bool force_constants, int limit){
+	int inputchosen = -1,input_range;
 	int operationchosen;
-	int width_selected,width_selected_2;
-	int pos1,pos2,pos3,pos4;
+	int width_selected;
+	int pos1,pos2;
 	bool invert = one_out_of(2, allow_invert);
 	bool force_signed =0;	//Used for signed right shifts, to force otherwise unsigned parts/inputs to be signed
 	bool use_constant = one_out_of(CHANCE_OF_CONSTANT, constants, true);	//determines if a constant or an input will be returned
 	bool use_wire = one_out_of(CHANCE_OF_WIRE, !use_constant, true);	//if a constant isn't used, also rolls to reuse a previous wire
 	int wire_type = 0;	//default is typical top level input
-	if(force_constants || one_out_of(2, use_constant)){	
+	bool comb_loop = limit == v->comb_wire_1 || limit == v->comb_wire_2;
+	bool loop_connected = 0;
+	if ((force_constants || one_out_of(2, use_constant)) && func_budget) //TO-DO: do this better
 		randomConstant(width,_signed);	//prints a random constant generated given width/signness
-	}
 	else {
-		if(width > (bit_min+1)) {	//needs specific input
+		if (one_out_of(func_budget + 1, v->error) && comb_loop) {	// Needs specific input for comb_loop
+			if (limit == v->comb_wire_1)
+				inputchosen = v->comb_wire_2;
+			else
+				inputchosen = v->comb_wire_1;
+			
+			width_selected = getInputWidth(inputchosen);
+			wire_type = 1;
+			loop_connected = 1;
+			std::cout << " loop_connected at wire: " << STR(inputchosen) << std::endl;
+		}
+		else if (width > (bit_min+1)) {	//short range of possible inputs
 			input_range = inputs>(bit_max-bit_min) ? bit_max+2-width : bit_min+1+inputs-width;		//when there are less inputs than possible bit width combinations
 			width_selected = width + num_less_than(input_range);
 		}
-		else{	//otherwise selects random input
+		else {	//otherwise selects random input
 			input_range = inputs>(bit_max-bit_min) ? bit_min+1 : inputs;
 			width_selected = bit_min+1+num_less_than(input_range);	
 		}
 
 		pos1 = num_less_than(width_selected - width);	//finds small value
-		if(!bit_min)
-			pos2 =pos1;
-		else{
-			pos2 = num_less_than(width_selected - pos1 - 1) + pos1 + 1;	//finds random 2nd larger position
-		}
-		if(((width==1) || !(width%2) || (width<=bit_min)) && _signed){	//right shifts may sometimes request values that aren't naturally signed to be signed, need recast if this is the case
+		pos2 = num_less_than(width_selected - pos1 - 1) + pos1 + 1;	//finds random 2nd larger position
+
+		if (!bit_min)
+			pos2 = pos1;
+
+		if (((width==1) || !(width%2) || (width<=bit_min)) && _signed)	//right shifts may sometimes request values that aren't naturally signed to be signed, need recast if this is the case
 			v->log("$signed");	//chisel automatically assigns single bits as bools
-		}
+
 		v->log("(");
 		c->log("(");
 		p->log("(");
 
-		inputchosen = inputWidthRequest(width_selected);
-		if(use_constant){	//if a literal wasnt printed prevously but a constant is being commanded, changes the wire type being used
+		if (inputchosen == -1)
+			inputchosen = inputWidthRequest(width_selected);
+
+		if(use_constant && !wire_type){	//if a literal wasnt printed prevously but a constant is being commanded, changes the wire type being used
 			if(((inputchosen < inputs/2) && hasChild()) || (!hasChild())){
 				wire_type = 2;	//switches to literal operation wire
 			}
 		}
-		else if(use_wire){	//if a literal wasnt used, and rolls to use a previous "y" wire
-			if(inputchosen < limit || entropy)
+		else if(use_wire && !wire_type){	//if a literal wasnt used, and rolls to use a previous "y" wire
+			if(inputchosen < limit)
 				wire_type = 1;	//switches to previous wire, or creates comb loop
 		}
 
@@ -521,14 +535,14 @@ void Circuit::randomInput(int width, bool _signed, bool allow_invert, bool force
 						//Have to redo random input operations to find a second random input that is still valid as it depends on the first
 						if(pos2-pos1+1 > (bit_min+1)){	//needs specific input
 							input_range = inputs>(bit_max-bit_min) ? bit_max+2-(pos2-pos1+1) : bit_min+1+inputs-(pos2-pos1+1);		//when there are less inputs than possible bit width combinations
-							width_selected_2 = pos2-pos1+1 + (bit_max+1-pos2+pos1==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
+							int width_selected_2 = pos2-pos1+1 + (bit_max+1-pos2+pos1==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
 						}
 						else{	//otherwise selects random input
 							input_range = inputs>(bit_max-bit_min) ? bit_min+1 : inputs;		//when there are less inputs than possible bit width combinations
-							width_selected_2 = (bit_min+1)+(bit_min+1==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
+							int width_selected_2 = (bit_min+1)+(bit_min+1==0 ? 0 : xorshift32()%input_range);	//prevents % by 0 error
 						}
-						pos3 = width_selected_2-pos2+pos1-1==0 ? 0 : xorshift32()%(width_selected_2-pos2+pos1-1);	//prevents % by 0 error
-						pos4 = pos3 + pos2-pos1;
+						int pos3 = width_selected_2-pos2+pos1-1==0 ? 0 : xorshift32()%(width_selected_2-pos2+pos1-1);	//prevents % by 0 error
+						int pos4 = pos3 + pos2-pos1;
 						
 						
 						v->log("(%s%d[%d:%d]",vlog_wire_type[wire_type],inputchosen,pos2,pos1);
@@ -548,26 +562,29 @@ void Circuit::randomInput(int width, bool _signed, bool allow_invert, bool force
 			}
 
 		}
-		else if((width > bit_min) && _signed){	
+		else if ((width > bit_min) && _signed) {	
 			// PYROPE-REMOVE
-			if(1/*xorshift32()%2*/){	//directly prints signed input, to avoid recasts and maximize signed usage
-				if(invert){
+			if (1/*xorshift32()%2*/) {	//directly prints signed input, to avoid recasts and maximize signed usage
+				if (invert) {
 					v->log("~");
 					c->log("~");
 					p->log("~");
 				}
-				inputchosen = inputWidthRequest(width);
-				wire_type = 0;	//have to reset as a new inputchosen has been selected
-				if(use_constant){	//if a literal wasnt printed prevously but a constant is being commanded, changes the wire type being used
-					if(((inputchosen < inputs/2) && hasChild()) || (!hasChild())){
-						wire_type = 2;	//switches to literal operation wire
+
+				if (!comb_loop) {
+					inputchosen = inputWidthRequest(width);
+					wire_type = 0;	//have to reset as a new inputchosen has been selected
+
+					if (use_constant) {	//if a literal wasnt printed prevously but a constant is being commanded, changes the wire type being used
+						if (((inputchosen < inputs/2) && hasChild()) || (!hasChild()))
+							wire_type = 2;	//switches to literal operation wire
+					}
+					else if (use_wire) {	//if a literal wasnt used, and rolls to use a previous "y" wire
+						if (inputchosen < limit || error)
+							wire_type = 1;	//switches to previous wire, or creates comb loop
 					}
 				}
-				else if(use_wire){	//if a literal wasnt used, and rolls to use a previous "y" wire
-					if(inputchosen < limit || entropy){
-						wire_type = 1;	//switches to previous wire, or creates comb loop
-					}
-				}
+				
 				v->log(vlog_wire_type[wire_type] + STR(inputchosen));
 				c->log(chisl_wire_type[wire_type] + STR(inputchosen));
 				p->log(prp_wire_type[wire_type] + STR(inputchosen));
@@ -600,7 +617,7 @@ void Circuit::randomInput(int width, bool _signed, bool allow_invert, bool force
 			else{
 				p->log(prp_wire_type[wire_type] + STR(inputchosen) + "@(" + STR(pos1) + ":" + STR(pos1+width-1) + ")");
 			}
-			if(_signed)	//for when a signed right shift requests a signed value, but an part select is returned
+			if (_signed)	//for when a signed right shift requests a signed value, but an part select is returned
 				force_signed = 1;	
 		}
 		v->log(")");
@@ -615,6 +632,8 @@ void Circuit::randomInput(int width, bool _signed, bool allow_invert, bool force
 				c->log("UInt");
 		}
 		p->log(")");
+		if (loop_connected)
+			clearErr();
 	}
 }
 
@@ -647,7 +666,11 @@ bool Circuit::matchInputWidth(int width, int wire_number) {
 // randomConstant()
 // Helper to any any function than needs a random constant printed given width and signness
 void Circuit::randomConstant(int width, bool _signed) {
-	std::string value = STR(num_less_than((1 << width)/(1+_signed)));				//2's complement range stunted by 1/2
+	// MSB of const must be 1 to maintain appropriate bitwidth > 1 so livehd const/bitwidth passes don't remove semantics
+	int val = num_less_than((1 << width)/(1+_signed));
+	if (width > 1)
+		val |= (1 << (width - 1));
+	std::string value = STR(val);				//2's complement range stunted by 1/2
 	std::string roll_neg = one_out_of(2, _signed) ? "-" : "";
 	std::string v_sign = "'d";
 	std::string c_sign = "U";
@@ -669,18 +692,22 @@ int Circuit::getInputWidth(int wire_number) {
 
 // printAssignments()
 // Takes care of possible conditionals and generic wire assignments
-void Circuit::printAssignments(int width, int budget, int wire_number, bool _signed, bool force_constants) {
+void Circuit::printAssignments(int width, int func_budget, int wire_number, bool _signed, bool force_constants) {
+	if (wire_number == v->comb_wire_1 || wire_number == v->comb_wire_2)
+		startErr();
+
+
 	std::string z = force_constants ? "b" : "y";	//determines whether inputs or constants are being assigned
 	v->log("	assign " + z + STR(wire_number) + " = ");	//verilog output will always look the same
 	bool Mux;
-	if(one_out_of(2)){		//No Conditionals
+	if (force_constants | one_out_of(2)) {		//No Conditionals //PYROPE-EDIT: cant do force_constants and mux, pyrope pass doesnt like it, but prp pass seems ok for now
 		c->log("\n	" + z + STR(wire_number) + " := ");
 		p->log("\n" + z + STR(wire_number) + " = ");
-		functionGen(width, budget, width%2, 0, 1, 0, force_constants, wire_number);
+		functionGen(width, func_budget, width%2, 0, 1, 0, force_constants, wire_number);
 	}
 	else{					//Conditionals used
-		Mux = one_out_of(2);	//Chisel Mux() option
-		budget--;
+		Mux = one_out_of(2);	//Chisel Mux() option 
+		func_budget--;
 
 
 		if(Mux){	
@@ -691,14 +718,19 @@ void Circuit::printAssignments(int width, int budget, int wire_number, bool _sig
 		}
 		p->log("\nif (");
 
+		// comb loops don't work if plugged into mux sel
+		int temp_err = v->error;
+		v->error = 0;
 		//rolls for condition, should stick to boolean (single bit)
-		if(one_out_of(2, budget)) {
-			functionGen(1,budget,0,0, 1,0,force_constants,wire_number);
+		if(one_out_of(2, func_budget)) {
+			functionGen(1,func_budget,0,0, 1,0,force_constants,wire_number);
 		}
 		else{
 			// Request single bit from randomInput
-			randomInput(1,0, 1,force_constants,wire_number);
+			randomInput(1, func_budget, 0, 1,force_constants,wire_number);
 		}
+
+		v->error = temp_err;
 
 		v->log("?" );
 		c->log(".asBool" );
@@ -712,12 +744,12 @@ void Circuit::printAssignments(int width, int budget, int wire_number, bool _sig
 		p->log(z + STR(wire_number) + " = ");
 
 		//rolls for first =true output
-		if(one_out_of(2, budget)) {
-			functionGen(width,budget,_signed,0, 1,0,force_constants,wire_number);
+		if(one_out_of(2, func_budget)) {
+			functionGen(width,func_budget,_signed,0, 1,0,force_constants,wire_number);
 		}
 		else{
 			//print ternary opearnd
-			randomInput(width,_signed, 1,force_constants,wire_number);
+			randomInput(width, func_budget, _signed, 1,force_constants,wire_number);
 		}
 
 		v->log(":");
@@ -731,12 +763,12 @@ void Circuit::printAssignments(int width, int budget, int wire_number, bool _sig
 		p->log(z + STR(wire_number) + " = ");
 
 		// rolls for second =false output
-		if(one_out_of(2, budget)) {
-			functionGen(width,budget,_signed,!_signed, 1,0,force_constants,wire_number);	//forces concatenation for signed right shift to preserve signness
+		if(one_out_of(2, func_budget)) {
+			functionGen(width,func_budget,_signed,!_signed, 1,0,force_constants,wire_number);	//forces concatenation for signed right shift to preserve signness
 		}
 		else{
 			//print ternary opearnd
-			randomInput(width,_signed, 1,force_constants,wire_number);
+			randomInput(width, func_budget, _signed, 1,force_constants,wire_number);
 		}
 
 		if(Mux){
