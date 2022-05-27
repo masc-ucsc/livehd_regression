@@ -1,5 +1,7 @@
 #!/bin/env python3
+
 import argparse
+import os
 import re
 import typing
 
@@ -68,10 +70,6 @@ class ModuleParser:
                 module_code += line
         current_module.set_code(module_code)
 
-        # for mod in self.modules.values():
-        #     print(mod.name)
-        #     print(mod.code)
-
     def find_deps(self, name):
         deps = []
         if name not in self.modules:
@@ -82,6 +80,11 @@ class ModuleParser:
         deps += [name]
         return list(dict.fromkeys(deps)) # Ordered Set
 
+    def write_all_deps(self, name, directory):
+        deps = self.find_deps(name)
+        for dep_name in deps:
+            self.write_deps(dep_name, directory + '/' + dep_name + '.fir')
+
     def write_deps(self, name, filename):
         deps = self.find_deps(name)
         with open(filename, 'w') as f:
@@ -89,12 +92,22 @@ class ModuleParser:
             for dep_name in deps:
                 f.write(self.modules[dep_name].code)
 
+    def print_deps(self, name):
+        deps = self.find_deps(name)
+        for dep_name in deps:
+            print('- {}'.format(dep_name))
+            for sub_dep in self.modules[dep_name].deps:
+                print('  - {}'.format(sub_dep))
+
 if __name__ == "__main__":
         
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', required=True, help='Input File')
     parser.add_argument('-o', '--output', required=False, help='Output File (default: <TOP>.fir')
     parser.add_argument('-t', '--top', help='Module to Extract')
+    parser.add_argument('-qo', '--query-only', action='store_true', help='Only print dependencies')
+    parser.add_argument('-da', '--dump-all', action='store_true', help='Dump all dependent modules to separate files')
+    parser.add_argument('-odir', '--output-dir', default='./extracted', help='Output directory for "--dump-all" option (default: extracted/)')
 
     args = parser.parse_args()
     if not args.output:
@@ -102,4 +115,10 @@ if __name__ == "__main__":
 
     module_parser = ModuleParser()
     module_parser.parse_file(args.input)
-    module_parser.write_deps(args.top, args.output)
+    if args.query_only:
+        module_parser.print_deps(args.top)
+    elif args.dump_all:
+        os.makedirs(args.output_dir, exist_ok=True)
+        module_parser.write_all_deps(args.top, args.output_dir)
+    else:
+        module_parser.write_deps(args.top, args.output)
