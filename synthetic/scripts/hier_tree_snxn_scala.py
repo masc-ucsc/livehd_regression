@@ -6,8 +6,8 @@ import math
 import random
 
 def main():
-    total_cells_list = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
-    # total_cells_list = [100000]
+    # total_cells_list = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
+    total_cells_list = [1000000]
     # total_cells_list = [600000]
     # total_cells_list = [1000, 2000, 3000, 3610, 4000, 5000, 6000, 6890, 7000, 8000]
     # total_cells_list = [100000]
