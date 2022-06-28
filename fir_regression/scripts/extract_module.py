@@ -125,7 +125,8 @@ class ModuleParser:
     def write_max_depth(self, name, max_depth, directory):
         deps = self.find_deps_with_max_depth(name, max_depth)
         for dep_name, depth in deps:
-            self.write_deps(dep_name, '{}/D{}__{}.fir'.format(directory, depth, dep_name))
+            if (depth == max_depth):
+                self.write_deps(dep_name, '{}/{}.fir'.format(directory, dep_name))
 
     def print_deps(self, name):
         deps = self.find_deps(name)

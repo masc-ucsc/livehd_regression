@@ -1,4 +1,4 @@
-circuit  BreakpointUnit_4:
+circuit BreakpointUnit_4 :
   module BreakpointUnit_4 : 
     input clock : Clock
     input reset : UInt<1>
@@ -10,3 +10,4 @@ circuit  BreakpointUnit_4:
     io.debug_if <= UInt<1>("h00") @[Breakpoint.scala 77:15]
     io.debug_ld <= UInt<1>("h00") @[Breakpoint.scala 78:15]
     io.debug_st <= UInt<1>("h00") @[Breakpoint.scala 79:15]
+    
