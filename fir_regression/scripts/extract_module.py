@@ -128,12 +128,11 @@ class ModuleParser:
             if (depth == max_depth):
                 self.write_deps(dep_name, '{}/{}.fir'.format(directory, dep_name))
 
-    def print_deps(self, name):
-        deps = self.find_deps(name)
-        for dep_name in deps:
-            print('- {}'.format(dep_name))
-            for sub_dep in self.modules[dep_name].deps:
-                print('  - {}'.format(sub_dep))
+    def print_deps(self, name, depth):
+        print('  ' * depth, end='')
+        print('- {}'.format(name))
+        for dep_name in self.modules[name].deps:
+            self.print_deps(dep_name, depth+1)
 
 if __name__ == "__main__":
         
@@ -141,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--input', required=True, help='Input File')
     parser.add_argument('-o', '--output', required=False, help='Output File (default: <TOP>.fir')
     parser.add_argument('-t', '--top', help='Module to Extract')
-    parser.add_argument('-qo', '--query-only', action='store_true', help='Only print dependencies')
+    parser.add_argument('-q', '--query', action='store_true', help='Query dependencies only')
     parser.add_argument('-da', '--dump-all', action='store_true', help='Dump all dependent modules to separate files')
     parser.add_argument('-lo', '--leaves-only', action='store_true', required=False, help='Dump only leaf modules to separate files')
     parser.add_argument('-md', '--max-depth', metavar='DEPTH', type=int, required=False, help='Dump all modules with tree depth <= LEVEL to separate files')
@@ -153,8 +152,8 @@ if __name__ == "__main__":
 
     module_parser = ModuleParser()
     module_parser.parse_file(args.input)
-    if args.query_only:
-        module_parser.print_deps(args.top)
+    if args.query:
+        module_parser.print_deps(args.top, 0)
     elif args.dump_all:
         os.makedirs(args.output_dir, exist_ok=True)
         module_parser.write_all_deps(args.top, args.output_dir)
