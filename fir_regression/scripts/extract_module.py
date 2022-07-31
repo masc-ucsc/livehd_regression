@@ -129,11 +129,11 @@ class ModuleParser:
                 self.write_deps(dep_name, '{}/{}.fir'.format(directory, dep_name))
 
     def print_deps(self, name, depth):
-        print('  ' * depth, end='')
+        print('    ' * depth, end='')
         if name not in self.modules:
             print('- {} (*EXTERNAL)'.format(name))
             return
-        print('- {}'.format(name))
+        print('- D{}: {}'.format(depth, name))
         for dep_name in self.modules[name].deps:
             self.print_deps(dep_name, depth+1)
 

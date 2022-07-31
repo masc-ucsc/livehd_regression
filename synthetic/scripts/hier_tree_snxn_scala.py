@@ -23,7 +23,6 @@ def main():
 
 
     for total_cells in total_cells_list:
-
         theory_module_num = total_cells/avg_module_size
         depth = math.ceil(math.log(theory_module_num, avg_children))
         
