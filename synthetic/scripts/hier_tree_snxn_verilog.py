@@ -10,10 +10,11 @@ def main():
     # total_cells_list = [1000000]
     # total_cells_list = [600000]
     # total_cells_list = [1000, 2000, 3000, 3610, 4000, 5000, 6000, 6890, 7000, 8000]
-    total_cells_list = [1000]
-    # total_cells_list = [100]
+    # total_cells_list = [1000]
+    total_cells_list = [100]
     avg_children = 4
-    avg_module_size = 300  # small BOOM avg
+    # avg_module_size = 300  # small BOOM avg
+    avg_module_size = 10  # small BOOM avg
     sd = 1658              # small BOOM SD
 
     # avg_children = 4
@@ -141,21 +142,21 @@ def main():
             f.write("  input  a,\n")
             f.write("  input  b,\n")
             f.write("  output z\n")
-            f.write(");\n")
+            f.write(");\n\n")
 
             # construct the main body
             module2last_inv = {}
             for i in range(assigned_cells):
                 if i == 0:
-                    f.write("  wire t0 = a + b;\n")
-                    f.write("  wire inv0  = ~t0;\n")
-                    f.write("  wire x0    = t0 ^ inv0;\n")
-                    f.write("  wire invx0 = ~x0;\n")
+                    f.write("wire t0 = a + b;\n")
+                    f.write("wire inv0  = ~t0;\n")
+                    f.write("wire x0    = t0 ^ inv0;\n")
+                    f.write("wire invx0 = ~x0;\n")
                 else:
-                    f.write("  wire t%d    = x%d + invx%d;\n"   %(i, i-1, i-1))
-                    f.write("  wire inv%d  = ~t%d;\n"           %(i, i))
-                    f.write("  wire x%d    = t%d ^ inv%d;\n"    %(i, i, i))
-                    f.write("  wire invx%d = ~x%d;\n"           %(i, i))
+                    f.write("wire t%d    = x%d + invx%d;\n"   %(i, i-1, i-1))
+                    f.write("wire inv%d  = ~t%d;\n"           %(i, i))
+                    f.write("wire x%d    = t%d ^ inv%d;\n"    %(i, i, i))
+                    f.write("wire invx%d = ~x%d;\n"           %(i, i))
                     if (i == assigned_cells -1):
                         module2last_inv[module_name] = "invx%d" %(i)
                         # print("module %s last inv is : %s" %(module_name, module2last_inv[module_name]))
@@ -171,18 +172,18 @@ def main():
                         submodule_name = word
                 # f.write("  wire %s_a;\n" %(submodule_name))
                 # f.write("  wire %s_b;\n" %(submodule_name))
-                f.write("\n  wire %s_z;\n" %(submodule_name))
-                f.write("  %s inst_%s(\n" %(submodule_name, submodule_name))
-                f.write("  .a(a),\n")
-                f.write("  .b(b),\n")
-                f.write("  .z(%s_z)\n" %(submodule_name))
-                f.write("  );\n")
+                f.write("\nwire %s_z;\n" %(submodule_name))
+                f.write("%s inst_%s(\n" %(submodule_name, submodule_name))
+                f.write(".a(a),\n")
+                f.write(".b(b),\n")
+                f.write(".z(%s_z)\n" %(submodule_name))
+                f.write(");\n")
 
             
             # make children instances outputs interact with parent's output
             if (tree[node].is_leaf() == True):
                 f.write("\n")
-                f.write("  assign z = %s;\n" %(module2last_inv[module_name]))
+                f.write("assign z = %s;\n" %(module2last_inv[module_name]))
                 f.write("endmodule\n\n")
                 continue     # continue next iterator of expand_tree
 
@@ -195,7 +196,7 @@ def main():
                         submodule_name = word
 
                 if i == 0:
-                    f.write("\n  wire sum = %s_z" %(submodule_name))
+                    f.write("\nwire sum = %s_z" %(submodule_name))
                 else:
                     f.write(" + %s_z" %(submodule_name))
                 i = i + 1
@@ -203,7 +204,7 @@ def main():
             f.write(";")
             f.write("\n")
 
-            f.write("  assign z = sum ^ a;\n")
+            f.write("assign z = sum ^ a;\n")
             f.write("endmodule\n\n")
 
 

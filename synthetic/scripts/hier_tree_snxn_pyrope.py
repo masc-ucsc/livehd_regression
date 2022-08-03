@@ -5,15 +5,15 @@ import re
 import math
 import random
 
+module2last_inv = {}
 def main():
     # total_cells_list = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
-    total_cells_list = [1000000]
-    # total_cells_list = [600000]
-    # total_cells_list = [1000, 2000, 3000, 3610, 4000, 5000, 6000, 6890, 7000, 8000]
-    # total_cells_list = [100000]
-    # total_cells_list = [100]
+    # total_cells_list = [1000000]
+    total_cells_list = [40]
+    # total_cells_list = [40]
     avg_children = 4
-    avg_module_size = 300  # small BOOM avg
+    # avg_module_size = 300  # small BOOM avg
+    avg_module_size = 4  # small BOOM avg
     sd = 1658              # small BOOM SD
 
     # avg_children = 4
@@ -119,92 +119,109 @@ def main():
         #step-4: check the chidren module name, create children instantiations
         #step-5: create some interaction for the children output and the parent output
 
-        f = open("%s.scala" %(tree[tree.root].tag.split()[1]), "w+")
+        f = open("%s.prp" %(tree[tree.root].tag.split()[1]), "w+")
         f.write("// total modules: %s\n" %(total_created_modules))
         f.write("// design tree depth: %s\n" %(tree.depth()+1))
         f.write("// design size: %s\n" %(total_assigned_cells))
         f.write("// avg module size: %s\n" %(avg_module_size))
-        
-        f.write("package %s\n" %(tree[tree.root].tag).split()[1])
-        f.write("import chisel3._\n")
-        f.write("import scala.language.reflectiveCalls\n\n")
+           
+
+        def gen_logic_chain(module_name, f, assigned_cells, d, is_top):
+            global module2last_inv
+            # indent = ""
+            # if (depth != 0):
+            #     indent = "  " * depth * 2 
 
 
-        for node in tree.expand_tree(mode=Tree.WIDTH):
-            assigned_cells = 0
-            module_name = ""
-            for word in tree[node].tag.split():
-                if word.isdigit():
-                    assigned_cells = math.ceil(int(word)/4)
-                else:
-                    module_name = word
+            f.write("\n")
+            if (is_top == False):
+                f.write("    " * (d - 1) + "%s = || {\n" %(module_name))
+            # f.write("    " * d + "$a.__ubits = 2\n")
+            # f.write("    " * d + "$b.__ubits = 2\n")
 
 
-
-            f.write("\nclass %s extends Module {\n" %(module_name))
-            f.write("  val io = IO(new Bundle {\n")
-            f.write("    val a = Input(UInt(1.W))\n")
-            f.write("    val b = Input(UInt(1.W))\n")
-            f.write("    val z = Output(UInt(1.W))\n")
-            f.write("  })\n")
-
-            # construct the main body
-            module2last_inv = {}
             for i in range(assigned_cells):
                 if i == 0:
-                    f.write("  val t0    = io.a + io.b\n")
-                    f.write("  val inv0  = ~t0\n")
-                    f.write("  val x0    = t0 ^ inv0\n")
-                    f.write("  val invx0 = ~x0\n")
-                else:
-                    f.write("  val t%d    = x%d + invx%d\n"   %(i, i-1, i-1))
-                    f.write("  val inv%d  = ~t%d\n"           %(i, i))
-                    f.write("  val x%d    = t%d ^ inv%d\n"    %(i, i,i))
-                    f.write("  val invx%d = ~x%d\n"           %(i, i))
-                    if (i == assigned_cells -1):
+                    f.write("    " * d + "t0    = $a + $b\n")
+                    f.write("    " * d + "inv0  = ~t0\n")
+                    f.write("    " * d + "x0    = t0 ^ inv0\n")
+                    f.write("    " * d + "invx0 = ~x0\n")
+                    if (i == assigned_cells - 1):
                         module2last_inv[module_name] = "invx%d" %(i)
-                        # print("module %s last inv is : %s" %(module_name, module2last_inv[module_name]))
-                        
-            
-            
-            # create children instances
+                else:
+                    f.write("    " * d + "t%d    = x%d + invx%d\n"   %(i, i-1, i-1))
+                    f.write("    " * d + "inv%d  = ~t%d\n"           %(i, i))
+                    f.write("    " * d + "x%d    = t%d ^ inv%d\n"    %(i, i, i))
+                    f.write("    " * d + "invx%d = ~x%d\n"           %(i, i))
+                    # f.write(indent + "%%z = invx%d;\n"             %(i))
+                    if (i == assigned_cells - 1):
+                        module2last_inv[module_name] = "invx%d" %(i)
+                    
+        
+        # create children instances
+        def handle_submodule(node, f, d, is_top):
+            global module2last_inv
+            submodule_names = []
             for child in tree.children(node):
                 # print(child.tag)
                 submodule_name = ""
                 for word in child.tag.split():
-                    if word.isdigit() == False:
+                    if word.isdigit():
+                        assigned_cells = math.ceil(int(word)/4)
+                    else:
                         submodule_name = word
-                f.write("\n  val inst_%s = Module(new %s())\n" %(submodule_name, submodule_name))
-                f.write("  inst_%s.io.a := io.a\n" %(submodule_name))
-                f.write("  inst_%s.io.b := io.b\n" %(submodule_name))
 
-            
-            # make children instances outputs interact with parent's output
-            if (tree[node].is_leaf() == True):
+
+
+                print(submodule_name, assigned_cells) 
+                gen_logic_chain(submodule_name, f, assigned_cells, d, False)
+                handle_submodule(submodule_name, f, d + 1, False)
+                submodule_names.append(submodule_name)
+
+
+            for submodule_name in submodule_names:
+                print(submodule_name)
+                f.write("    " * (d - 1) + "res_%s = %s(a = $a, b = $b)\n" %(submodule_name, submodule_name))
+
+            if not submodule_names:
+                f.write("    " * (d - 1) + "%%z = %s\n" %(module2last_inv[node]))
+            else:
                 f.write("\n")
-                f.write("  io.z := %s\n" %(module2last_inv[module_name]))
-                f.write("}\n")
-                continue     # continue next iterator of expand_tree
+                f.write("    " * (d - 1) + "sum = ")
+                i = 0
+                for submodule_name in submodule_names:
+                    if i == 0:
+                        f.write("res_%s.z" %(submodule_name))
+                    else:
+                        f.write(" + res_%s.z" %(submodule_name))
+                    i = i + 1
+                f.write("\n")
+                f.write("    " * (d - 1) + "%z = sum ^ $a")
+                f.write("\n")
+
+            if (is_top == False):
+                f.write("    " * (d - 2) + "}\n\n")
 
 
-            i = 0
-            for child in tree.children(node):
-                submodule_name = ""
-                for word in child.tag.split():
-                    if word.isdigit() == False:
-                        submodule_name = word
 
-                if i == 0:
-                    f.write("\n  val sum = inst_%s.io.z" %(submodule_name))
-                else:
-                    f.write(" + inst_%s.io.z" %(submodule_name))
-                i = i + 1
-            
-            f.write("\n")
+        node = tree.root
+        assigned_cells = 0
+        module_name = ""
 
-            f.write("  io.z := sum ^ io.a\n")
-            f.write("}\n")
+        for word in tree[node].tag.split():
+            if word.isdigit():
+                assigned_cells = math.ceil(int(word)/4)
+            else:
+                module_name = word
 
+
+        # construct the main body
+        global module2last_inv 
+        depth = 0
+
+        print(module_name, assigned_cells) 
+        gen_logic_chain(module_name, f, assigned_cells, depth, True)
+        handle_submodule(node, f, depth + 1, True)
 
 if __name__ == "__main__":
     main()
