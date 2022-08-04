@@ -28,10 +28,11 @@ do
 
   pt=$(basename "$filename" .fir) # ./foo/bar.scala -> bar
   echo "---------- Chirrtl Compilation: $pt.fir ----------"
-  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB
+  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB  firrtl.transforms.NoCircuitDedupAnnotation
+  # $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB  
   $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X verilog -o generated/${pt}.v
   $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X high    -o generated/${pt}.hi.fir
-  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X low    -o generated/${pt}.low.fir
+  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X low     -o generated/${pt}.low.fir
 
   cp generated/${pt}.v    ~/livehd/inou/firrtl/tests/verilog_gld/${pt}.gld.v
   cp circuit.ch.pb        ~/livehd/inou/firrtl/tests/proto/$pt.ch.pb

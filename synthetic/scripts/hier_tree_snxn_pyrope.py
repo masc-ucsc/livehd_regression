@@ -9,12 +9,12 @@ import random
 module2last_inv = {}
 def main():
     # total_cells_list = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
-    # total_cells_list = [1000000]
-    total_cells_list = [100]
+    total_cells_list = [1000000]
+    # total_cells_list = [20000]
     # total_cells_list = [40]
     avg_children = 4
-    # avg_module_size = 300  # small BOOM avg
-    avg_module_size = 4  # small BOOM avg
+    avg_module_size = 300  # small BOOM avg
+    # avg_module_size = 50  # small BOOM avg
     sd = 1658              # small BOOM SD
 
     # avg_children = 4
