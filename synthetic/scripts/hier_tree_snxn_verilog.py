@@ -7,14 +7,14 @@ import random
 
 def main():
     # total_cells_list = [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
-    # total_cells_list = [1000000]
+    total_cells_list = [1000000]
     # total_cells_list = [600000]
     # total_cells_list = [1000, 2000, 3000, 3610, 4000, 5000, 6000, 6890, 7000, 8000]
     # total_cells_list = [1000]
-    total_cells_list = [100]
+    # total_cells_list = [100]
     avg_children = 4
-    # avg_module_size = 300  # small BOOM avg
-    avg_module_size = 10  # small BOOM avg
+    avg_module_size = 300  # small BOOM avg
+    # avg_module_size = 10  # small BOOM avg
     sd = 1658              # small BOOM SD
 
     # avg_children = 4
@@ -27,9 +27,9 @@ def main():
 
         theory_module_num = total_cells/avg_module_size
         depth = math.ceil(math.log(theory_module_num, avg_children))
-        
 
-        # virtual tree construction and distribute the cells to modules 
+
+        # virtual tree construction and distribute the cells to modules
         tree = Tree()
         top_name = ""
 
@@ -44,7 +44,7 @@ def main():
                 assigned_cells = random.randint(0,avg_module_size*2)
                 # assigned_cells = 0
                 # while True :
-                #     # assigned_cells = int(random.gauss(avg_module_size, sd)) 
+                #     # assigned_cells = int(random.gauss(avg_module_size, sd))
                 #     assigned_cells = random.randint(0,avg_module_size*2)
 
                 #     if assigned_cells > 0 :
@@ -81,7 +81,7 @@ def main():
                     sub_name = "SnxnLv" + str(d) + "Inst" + str(i)
                     tree.create_node(str(assigned_cells) + " " + sub_name, sub_name, parent = top_name)
                     total_created_modules += 1
-            else :        
+            else :
                 for i in range(avg_children ** (d)): # 0 ~ 15
                     if left_cells < 0 :
                         break
@@ -111,7 +111,7 @@ def main():
         print("depth = ", tree.depth()+1)
         print("total_assigned_cells = %d" %(total_assigned_cells))
 
-        
+
         #todo: extend to Pyrope and Verilog synthetic
 
         #step-1: get some cells from the encode node tag, a tag example "327 SnxnLv2Inst5"
@@ -125,7 +125,7 @@ def main():
         f.write("// design tree depth: %s\n" %(tree.depth()+1))
         f.write("// design size: %s\n" %(total_assigned_cells))
         f.write("// avg module size: %s\n" %(avg_module_size))
-        
+
 
         for node in tree.expand_tree(mode=Tree.WIDTH):
             assigned_cells = 0
@@ -160,9 +160,9 @@ def main():
                     if (i == assigned_cells -1):
                         module2last_inv[module_name] = "invx%d" %(i)
                         # print("module %s last inv is : %s" %(module_name, module2last_inv[module_name]))
-                        
-            
-            
+
+
+
             # create children instances
             for child in tree.children(node):
                 # print(child.tag)
@@ -179,7 +179,7 @@ def main():
                 f.write(".z(%s_z)\n" %(submodule_name))
                 f.write(");\n")
 
-            
+
             # make children instances outputs interact with parent's output
             if (tree[node].is_leaf() == True):
                 f.write("\n")
@@ -200,7 +200,7 @@ def main():
                 else:
                     f.write(" + %s_z" %(submodule_name))
                 i = i + 1
-            
+
             f.write(";")
             f.write("\n")
 
