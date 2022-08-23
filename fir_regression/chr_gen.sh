@@ -28,7 +28,7 @@ do
 
   pt=$(basename "$filename" .fir) # ./foo/bar.scala -> bar
   echo "---------- Chirrtl Compilation: $pt.fir ----------"
-  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB  firrtl.transforms.NoCircuitDedupAnnotation
+  $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB  
   # $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X none --custom-transforms firrtl.transforms.WriteChPB  
   $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X verilog -o generated/${pt}.v
   $FIRRTL_EXE -i   chirrtl_src/$pt.fir -X high    -o generated/${pt}.hi.fir
