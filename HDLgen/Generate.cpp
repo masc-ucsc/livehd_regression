@@ -3,12 +3,12 @@
 // Generate.cpp
 // Client for HDLGen
 //-----------------------------------------------------------------------------
-#include<string>
-#include<iostream>
+#include <string>
+#include <iostream>
 #include <sys/stat.h>
 #include <stdlib.h>    /* for exit */
 #include <getopt.h>
-#include"HDLGen.h"
+#include "include/HDLGen.h"
 
 using namespace std;
 
@@ -37,6 +37,7 @@ int main(int argc, char *argv[]){
 	uint32_t seed = 123457;
 	int split = 2;
 	bool allow_constants = false, memory = false, entropy = false;
+    std::string name = "random_verilog";
 
 	int c = 0;
 
@@ -51,6 +52,7 @@ int main(int argc, char *argv[]){
 		    {"levels", required_argument, NULL, 'l'},
 		    {"seed", required_argument, NULL, 's'},
 		    {"split", required_argument, NULL, 'S'},
+		    {"name", required_argument, NULL, 'n'},
 		    {"allow_constants", no_argument, NULL, 'c'},
 		    {"memory", no_argument, NULL, 'M'},
 		    {"entropy", no_argument, NULL, 'e'},
@@ -70,7 +72,6 @@ int main(int argc, char *argv[]){
 	       			exit(EXIT_FAILURE);
 	       		}
 	       		inputs = (int)strtol(optarg, NULL, 10);
-	       		cout << "inputs: " << inputs << endl;
 	       		break;
 	       	case('b') :
 	       		if (budget) {
@@ -78,7 +79,6 @@ int main(int argc, char *argv[]){
 	       			exit(EXIT_FAILURE);
 	       		}
 	       		budget = (int)strtol(optarg, NULL, 10);
-	       		cout << "budget: " << budget << endl;
 	       		break;
 	       	case('m') :
 	       		if (bit_max) {
@@ -86,7 +86,6 @@ int main(int argc, char *argv[]){
 	       			exit(EXIT_FAILURE);
 	       		}
 	       		bit_max = (int)strtol(optarg, NULL, 10);
-	       		cout << "bit_max: " << bit_max << endl;
 	       		break;
 	       	case('l') :
 	       		if (levels) {
@@ -94,7 +93,6 @@ int main(int argc, char *argv[]){
 	       			exit(EXIT_FAILURE);
 	       		}
 	       		levels = (int)strtol(optarg, NULL, 10);
-	       		cout << "levels: " << levels << endl;
 	       		break;
 	       	case('s') :	//seed
 	       		seed = (uint32_t)strtol(optarg, NULL, 10);
@@ -110,6 +108,9 @@ int main(int argc, char *argv[]){
 	       		break;
 	       	case('e') :
 	       		entropy = true;
+	       		break;
+	       	case('n') :
+                name = optarg;
 	       		break;
 	        case('h') :	//help
 	        	cout << usageReport << endl;
@@ -146,9 +147,9 @@ int main(int argc, char *argv[]){
 
 	Logger* chis = new Logger("randomchisel.scala");
 	Logger* pyro = new Logger("randompyrope.prp");
-	Logger* veri = new Logger("randomverilog.v");
+	Logger* veri = new Logger(name + ".v");
 
-	Circuit* test1 = new Circuit(chis, pyro, veri, bit_max, inputs, levels, budget, split, entropy, allow_constants);
+	Circuit* test1 = new Circuit(name, chis, pyro, veri, bit_max, inputs, levels, budget, split, entropy, allow_constants);
 
     // success - creates files
     createHierarchy(test1, seed);

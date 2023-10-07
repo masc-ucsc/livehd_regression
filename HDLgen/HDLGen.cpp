@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <string>
 #include <iostream>
-#include "HDLGen.h"
+#include "include/HDLGen.h"
 
 #define SRAM_SIZE 16
 #define SRAM_DATA_SIZE 16
@@ -35,10 +35,10 @@ void createHierarchy(Circuit* top_level, uint32_t seed) {
 	Circuit* currentCircuit = top_level;
 
 	for (int i = currentCircuit->levels; i>1; i--) {
-		newCircuit = new Circuit(currentCircuit->c, currentCircuit->p, currentCircuit->v, 
+		newCircuit = new Circuit(currentCircuit->name, currentCircuit->c, currentCircuit->p, currentCircuit->v, 
 			currentCircuit->bit_max/currentCircuit->split, currentCircuit->inputs/currentCircuit->split, 
 			currentCircuit->levels - 1, currentCircuit->budget-currentCircuit->levels, currentCircuit->split, 
-			currentCircuit->entropy, currentCircuit->constants);
+			currentCircuit->error, currentCircuit->constants);
 
 		if (!(currentCircuit->setChild(newCircuit) && newCircuit->setParent(currentCircuit))) {
 			std::cerr << "Linking circuits failed at level " << i << std::endl;
@@ -68,7 +68,7 @@ void Circuit::declareModule() {
 		c->log("sub_");
 	}
 
-	v->log("randomverilog(");	
+	v->log(name + "(");	
 	c->log("randomchisel extends Module {\n");
 	c->log("	val io = IO(new Bundle {\n");
 
@@ -81,8 +81,8 @@ void Circuit::declareModule() {
 // Helper (more like doer of pretty much everything) to declareModule
 // Prints to file inputs and outputs of currently declaring module
 void Circuit::verilog_chiselIO() {
-	v->log("\n	input clock,\n" );	//need this for comparison to chisel, as clk and rst are implied inputs
-	v->log("	input reset,\n" );
+	//v->log("  input clock,\n" );	//need this for comparison to chisel, as clk and rst are implied inputs
+	//v->log("  input reset,\n" );
 	p->log("$clock.__sbits = 1\n");
 	p->log("$reset.__sbits = 1\n");
 
@@ -99,12 +99,12 @@ void Circuit::verilog_chiselIO() {
 			c_sign = "SInt(";
 		}
 
-		v->log("	input " + v_sign + STR(current_width - 1) + ":0] io_a" + STR(i) + ",\n");
+		v->log("  input " + v_sign + STR(current_width - 1) + ":0] a" + STR(i) + "_i" + ",\n");
 		c->log("		val a" + STR(i) + " = Input(" + c_sign + STR(current_width) + ".W))\n");
 		p->log("$io_a" + STR(i) + ".__sbits = " + STR(current_width) + "\n");	 //pyrope always uses signed IO, better to create internal wires that copy verilog/chisel unsigned wires
 	}
 
-	v->log("	output [" + STR(output_width-1) + ":0] io_y);\n");
+	v->log("  output [" + STR(output_width-1) + ":0] y_o\n);");
 	c->log("		val y = Output(UInt(" + STR(output_width) + ".W))\n");
 	c->log("	})\n");
 	p->log("%io_y.__sbits = " + STR(output_width) + "\n");  //pyrope always uses signed IO, better to just set it as signed than have it create a unsigned output forcing width+1
@@ -124,12 +124,11 @@ void Circuit::declareWires() {
 
 	if (hasChild()) {
 		for (i = 0; i < inputs / 2; i++) {	//prints submodule output wires
-			v->log("	wire [" + STR(getChild()->output_width-1) + ":0] x" + STR(i) + ";\n");
+			v->log("  wire [" + STR(getChild()->output_width-1) + ":0] x" + STR(i) + ";\n");
 			c->log("	val x" + STR(i) + " = Wire(UInt(" + STR(getChild()->output_width) + ".W))\n");
 		}
 	}
 
-	v->log("\n");
 	c->log("\n");
 
 	if (constants) {	//does the same thing as generic top level wires, only all operands are constants
@@ -147,13 +146,12 @@ void Circuit::declareWires() {
 				prp_wire_sign = "u";
 			}
 
-			v->log("	wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + ";\n");
+			v->log("  wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + ";\n");
 			c->log("	val b" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
 			p->log("b" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
 		}
 	}
 
-	v->log("\n");
 	c->log("\n");
 
 	for (i = 0; i < (inputs/(hasChild()?2:1)); i++) {	//prints top level logic wires
@@ -170,7 +168,7 @@ void Circuit::declareWires() {
 			prp_wire_sign = "u";
 		}
 
-		v->log("	wire [" + STR(current_width-1) + ":0] y" + STR(i) + ";\n");
+		v->log("  wire [" + STR(current_width-1) + ":0] y" + STR(i) + ";\n");
 		c->log("	val y" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
 		//pyrope always has signed IO, so we need to create wires that represent the unsigned IO verilog/chisel uses
 		p->log("\na" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
@@ -231,19 +229,20 @@ void Circuit::createSubmodules() {	//TO-DO FIX ME!!!
 		sub = sub + "sub_";
 
 	for (i = 0;i < inputs / 2; i++) {	//creates a submodule for each x wire
-		v->log("\n	" + sub + "randomverilog " + sub + "m_" + STR(i) + " (.clock(clock),\n");
+		v->log("\n	" + sub + name + " " + sub + "m_" + STR(i) + " (.clock(clock),\n");
 		v->log("			.reset(reset),\n");
 
 		c->log("	val " + sub + "m_" + STR(i) + " = Module(new " + sub + "randomchisel())\n");
 		// Begins assigning inputs to submodules
 		for (j = 0; j < sub_inputs; j++) {
 			current_width = sub_bit_min+1+(j%(sub_bit_max-sub_bit_min+1));
-			v->log("			.io_a" + STR(j) + "(");
+			v->log("			.a" + STR(j) + "(");
 			c->log("	" + sub + "m_" + STR(i) + ".io.a" + STR(j) + " := ");
 			/*if(current_width%2){
 				v->log("$signed" );
 			}*/
-			randomInput(current_width, current_width%2, 1, 0, j);	//needs to know if signed inputs align or not
+            // XXX - budget / 2 for now
+			randomInput(current_width, budget / 2, current_width%2, 1, 0, j);	//needs to know if signed inputs align or not
 			/*if(current_width%2){
 				c->log(".asSInt" );
 			}*/
@@ -251,7 +250,7 @@ void Circuit::createSubmodules() {	//TO-DO FIX ME!!!
 			c->log("\n");
 		}
 		// Prints output connections
-		v->log("			.io_y(x" + STR(i) + "));\n");
+		v->log("			.y_o(x" + STR(i) + "));\n");
 		c->log("	x" + STR(i) + " := " + sub + "m_" + STR(i) + ".io.y\n");
 	}
 	dumpLogs();
@@ -259,31 +258,31 @@ void Circuit::createSubmodules() {	//TO-DO FIX ME!!!
 
 // Does assign statements for each top level wire and connects all wires to concatenated output
 void Circuit::declareOutput() {
-	v->log("\n" );
 	c->log("\n" );
 
 	int i, current_width;
 	int prp_shift_counter = 0;	//due to a lack of prp support for concat, we must shift and OR wires into the output
 	std::string v_separator, c_separator, p_separator;
 
+    bool continue_block = false;
+
 	if (hasChild()) {
 		if (constants) {
 			for(i = 0; i < inputs / 2; i++) {	//assigns top level complex constant declarations
 				current_width = getInputWidth(i);
-				printAssignments(current_width, budget, i, current_width % 2, 1);
+				printAssignments(current_width, budget, i, current_width % 2, 1, false);
 			}
 		}
 
-		v->log("\n");
 		c->log("\n");
 
 		for (i = 0; i < inputs / 2; i++) {	//assigns top level wires
 			current_width = getInputWidth(i);
-			printAssignments(current_width, budget, i, current_width % 2, 0);
+			printAssignments(current_width, budget, i, current_width % 2, 0, false);
 		}
 
-		v->log("\n	assign io_y = {");
-		c->log("\n	io.y := Cat(");
+		v->log("\n  assign y_o = {");
+		c->log("\n  io.y := Cat(");
 
 		for (i = 0; i < inputs / 2; i++) {	//creates concatenated output TO-DO: REVERSE ORDER OF WIRES PRINTED
 			current_width = getInputWidth(i);
@@ -307,20 +306,34 @@ void Circuit::declareOutput() {
 		if (constants) {
 			for (i = 0; i < inputs; i++) {	//assigns top level complex constant declarations
 				current_width = getInputWidth(i);
-				printAssignments(current_width,budget,i,current_width%2,1);
+				printAssignments(current_width,budget,i,current_width%2,1, false);
 			}
 		}
 
-		v->log("\n");
 		c->log("\n");
 
 		for (i = 0; i < inputs; i++) {	//assigns top level wires
+            bool start_block = one_out_of(2, true, false);
+            if (start_block && continue_block)  // start new block
+                v->log("  end\n");
+
+            if (start_block)
+                v->log("\n  always_comb begin\n");
+
 			current_width = getInputWidth(i);
-			printAssignments(current_width, budget, i, current_width%2, 0);
-			prp_shift_counter += current_width;
+			printAssignments(current_width, budget, i, current_width%2, 0, continue_block || start_block);
+            
+            bool next_continue_block = (continue_block || start_block) && one_out_of(2, true, false);    // can only continue if already ongoing
+
+            if ((!next_continue_block || (i == inputs - 1)) && (continue_block || start_block))    // predetermined end or last wire 
+                v->log("  end\n");
+
+            continue_block = next_continue_block;
+
+            prp_shift_counter += current_width;
 		}
 
-		v->log("\n	assign io_y = {");
+		v->log("\n  assign y_o = {");
 		c->log("\n	io.y := Cat(");
 		p->log("\n %io_y =");
 

@@ -84,6 +84,9 @@ public:
 class Circuit {
 public:
 //private: TO-DO FIGURE OUT A WAY TO MAKE ME PRIVATE
+    // Name of the top level module and file
+    std::string name;
+
 	// Arguments that create the Circuit
 	int bit_max;
 	int inputs;
@@ -107,8 +110,9 @@ public:
 
 //public:
 
-	Circuit (Logger* chisel_file, Logger* pyrope_file, Logger* verilog_file, int circuit_bit_max, int circuit_inputs, int circuit_levels, int rng_budget, int hier_split, bool allow_error, bool allow_constants) {
-		bit_max = circuit_bit_max;
+	Circuit (std::string circuit_name, Logger* chisel_file, Logger* pyrope_file, Logger* verilog_file, int circuit_bit_max, int circuit_inputs, int circuit_levels, int rng_budget, int hier_split, bool allow_error, bool allow_constants) {
+		name    = circuit_name;
+        bit_max = circuit_bit_max;
 		inputs 	= circuit_inputs;
 		levels 	= circuit_levels;
 		split 	= hier_split;
@@ -183,7 +187,7 @@ public:
 	// Circuit creation functions --------------------------------------------------------
 
 	// Takes care of possible conditionals and generic wire assignments
-	void printAssignments(int width, int func_budget, int wire_number, bool _signed, bool force_constants);
+	void printAssignments(int width, int func_budget, int wire_number, bool _signed, bool force_constants, bool always_block);
 
 	// Uses recursive helper functions to create randomized functions
 	// Length of functions decided by budget which determines how many recursive
