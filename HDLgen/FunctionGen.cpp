@@ -16,7 +16,6 @@
 #include <assert.h>
 #include <string>
 #include "include/FunctionGen.h"
-asdf
 
 
 #define XORSHIFT_SEED 87
