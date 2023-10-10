@@ -709,7 +709,7 @@ void Circuit::printAssignments(int width, int func_budget, int wire_number, bool
     } else {
         v->log("  assign ");
     }
-	v->log(z + STR(wire_number) + " = ");	//verilog output will always look the same
+	v->log(z + STR(wire_number) + "_w = ");	//verilog output will always look the same
 	bool Mux;
 	if (force_constants | one_out_of(2)) {		//No Conditionals //PYROPE-EDIT: cant do force_constants and mux, pyrope pass doesnt like it, but prp pass seems ok for now
 		c->log("\n	" + z + STR(wire_number) + " := ");

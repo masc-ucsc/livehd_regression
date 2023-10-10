@@ -146,7 +146,7 @@ void Circuit::declareWires() {
 				prp_wire_sign = "u";
 			}
 
-			v->log("  wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + ";\n");
+			v->log("  wire" + v_wire_sign + "[" + STR(current_width-1) + ":0] b" + STR(i) + "_w;\n");
 			c->log("	val b" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
 			p->log("b" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
 		}
@@ -168,7 +168,7 @@ void Circuit::declareWires() {
 			prp_wire_sign = "u";
 		}
 
-		v->log("  wire [" + STR(current_width-1) + ":0] y" + STR(i) + ";\n");
+		v->log("  wire [" + STR(current_width-1) + ":0] y" + STR(i) + "_w;\n");
 		c->log("	val y" + STR(i) + " = Wire(" + c_wire_sign + STR(current_width) + ".W))\n");
 		//pyrope always has signed IO, so we need to create wires that represent the unsigned IO verilog/chisel uses
 		p->log("\na" + STR(i) + ".__" + prp_wire_sign + "bits = " + STR(current_width) + "\n");
@@ -288,11 +288,11 @@ void Circuit::declareOutput() {
 			current_width = getInputWidth(i);
 
 			if(i == inputs/2 - 1) {
-				v_separator = "}";
+				v_separator = "_w}";
 				c_separator = ")";
 			}
 			else {
-				v_separator = ",";
+				v_separator = "_w,";
 				c_separator = ",";
 			}
 
@@ -343,13 +343,13 @@ void Circuit::declareOutput() {
 
 
 			if (i) {
-				v_separator = ",";
+				v_separator = "_w,";
 				c_separator = ",";
 				p_separator = "|";
 
 			}
 			else {
-				v_separator = "}";
+				v_separator = "_w}";
 				c_separator = ")";
 				p_separator = " ";
 			}
