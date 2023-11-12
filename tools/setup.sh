@@ -27,7 +27,7 @@ else
   # curl -L -o chisel3.tar.gz https://github.com/chipsalliance/chisel3/archive/v3.4.2.tar.gz
   curl -L -o chisel3.tar.gz https://github.com/chipsalliance/chisel3/archive/refs/tags/v3.5.0-RC2.tar.gz
   tar xzf chisel3.tar.gz
-  mv chisel3-* chisel3
+  mv chisel-3* chisel3
   make -C chisel3 compile
   pushd .
   cd chisel3
